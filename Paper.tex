@@ -1,0 +1,154 @@
+\documentclass[bachelor,english]{hgbthesis}
+
+\begin{document}
+
+\title{Hybrid Threads for the Parrot Virtual Machine}
+
+\author{Stefan Seifert}
+\studiengang{Software Engineering}
+\studienort{Hagenberg}
+\abgabemonat{Februar}
+\abgabejahr{2012}
+
+\nummer{1010307037-A}
+\gegenstand{SWE}
+\semester{Wintersemester 2012}
+\betreuer{Heinz Dobler}
+
+\frontmatter
+\maketitle
+\tableofcontents
+
+\chapter{Thanks (1)}
+
+Andrew "whiteknight" Whitworth for laying the foundations for my work, being of tremendous help at all stages of the project and for fixing some of my bugs.
+
+Nat "Chandon" Tuck for implementing green thread basics on which my work is based.
+
+Christoph "cotto" Otto for bringing me into the Parrot project.
+
+Brian "benabik" Gernhardt for lurking in the IRC channel and at least trying to help with my many questions.
+
+\chapter{Abstract (1)}
+
+\begin{german}
+\chapter{Kurzfassung (1)}
+\end{german}
+
+\chapter{Table of Contents (1)}
+
+	Perl 6 Concurrency
+	About Parrot
+	Parrot threads
+	Nat "Chandon" Tuck green\_threads
+
+\mainmatter
+
+\chapter{Introduction and Motivation (3)}
+
+On July 19th 2000, the Perl 6 design process was announced. Perl 5 had been a very flexible and widely used programming language but had started to show it's age and suffered from early design decisions. The Perl interpreter is written in C and has accumulated a lot of cruft over the years. The general consensus among the core developers was that the code had reached a state where maintenance was approaching impossibility. [http://use.perl.org/~masak/journal/40451]. An attempt to reimplement these internals had failed but led to the decision that the interpreter for a Perl 6 language should be developed independently of the needs of Perl 5. Since the Perl 6 syntax was very much in flux (and parts of it still are) the designers of these new internals tried to work very independently of any syntax related questions. [http://www.developer.com/lang/perl/article.php/10940\_3076571\_3/Perl-6-and-the-Parrot-Project.htm]. Taking up the name born in an April Fool's Day joke announcing the mergin of the Perl and Python programming languages, these new internals were called Parrot.
+
+Parrot evolved from being just the interpreter for the new version of Perl to being a language independent virtual machine providing features like garbage collection, exception handling and dynamic typing. At the time when the Parrot project started, the Java and .NET virtual machines were widely used, but both targeted statically typed languages. Parrot thus filled a quickly growing niche.
+
+The Perl 6 design process began with asking the Perl users for what they were expecting from the new version of the language. The very first feature that got asked for was well integrated multi-threading support [http://dev.perl.org/perl6/rfc/1.html]. Perl 5 had two different implementations of thread support. In the first model, called 5005threads, data was shared by default and shared access to data had to be explicitely synchronized. This was similiar to the models used by languages such as C or Java. The implementation however suffered from data corruption and crashes and thus was not recommended for production use [http://search.cpan.org/~nwclark/perl-5.8.8/lib/Thread.pm]. Perl 5.6 introduced the newer model called ithreads, mostly as a way to emulate fork() on Win32 platforms. Perl 5.8 exposed this API to the user of the programming language. In this new model, all data would is copied to each thread and afterwards thread local. Data must be explicitely shared between threads. In other words, in Perl threads are not lightweight at all. They have severe impact on memory usage, writes to shared data are expensive and still not all features of the language are usable in threaded programs.
+
+Being born at a time when Perl 6 still looked much more similiar to Perl 5 than it does nowadays, Parrot's threading support initially was very close to Perl's ithreads model. Previous attempts to change this into the more conventional model of data shared by default or implementing new technologies like Software Transactional Memory failed. For example Parrot has never supported running multiple threads and having garbage collection at the same time.
+
+\section{Why is multi-threading support so important?}
+
+In the year 2005 development of faster CPUs shifted from increased speed of a single core to adding more cores. Modern processors contain up to 12 cores with even mobile phones having up to four. To utilize a modern CPU's power, code needs to be run in parallel. In UNIX (and thus Perl) tradition, this is accomplished using multiple processes which indeed is a good solution for many use cases. For many others like Perl 6's auto threading of hyper operators, the cost of process setup and communication would be prohibitively high except for very large data sets.
+
+\section{Why is it so difficult to implement multi-threading support in Perl or Parrot?}
+
+Low level programming languages like C provide only the bare necessities, leaving the responsibility for preventing data corruption entirely to the user. A high level language like Perl 6 on the other hand offers complex and compund data types, handles garbage collection and a very dynamic object system. Even seeminlgy simple things like a method call can become very complex sequences. In a statically typed programming language the definition of a class is immutable. Thus calling a method on an object contains just the steps of determining the object's class, fetching the required method from this class and calling it. Calling the same method again may then even omit the first two steps since their results cannot change.
+
+In a dynamic language, the object may change it's class at runtime. The inheritance hierarchy of the class may be changed by adding or removing parent classes. Methods may be added to or removed from classes (or objects) at runtime and even the way to find a method of a class may change. So a simple method call may result in the following steps:
+%
+\begin{itemize}
+\item determining the class of the object
+\item determining the method resolution method of the class
+\item finding the actual method to call
+\item calling the method
+\end{itemize}
+%
+These steps have to be repeated for every following method call, because their results may change any time. In a threaded environment, a thread running in parallel may change the underlying data and meta data in between those sequences and even between those steps. As a consequence, this meta data has to be protected from corruption introducing the need for many locks in a very performance critical area.
+
+While there are multi threaded garbage collection schemes, their implementation has not yet been attempted in Parrot.
+
+Many interpreters for dynamic languages like Python or Ruby handle this problem by using a global interpreter lock to effectively serialize all operations. This is a proven and reliable way but again leaves much of the hardware's potential unused.
+
+\section{Current status}
+
+During these years of back and forth and failed attempts of adding threading support to Parrot, the Perl 6 specification evolved to a point where the largest parts of the language were covered and its features implemented in the compilers. The lack of concurrency primitives in Parrot prevents however prevents any progress in the area of concurrency support.
+
+Currently Parrot does not have any threading support at all. The previous, defunct implementation has been removed.
+
+This paper suggests a new approach based on a hybrid threading system. So called green threads are used to simplify the implementation of a nearly lock free multi threading implementation. This approach is based on a design by Andrew Whitworth and Nat Tuck.
+
+\chapter{Parrot (4)}
+
+	July 19, 2000, Perl 6 design process announced
+	http://www.perl.com/pub/2001/04/01/parrot.htm
+	April Fool's Day joke
+
+	Historical development (1)
+
+\chapter{Concurrency in other Programming Platforms (5)}
+
+\section{Python}
+
+\chapter{Green threads (3)}
+
+"Green threads" or "lightweight threads" are threads which are managed by the virtual machine instead of by the operating system. The virtual machine contains a scheduler and support for preempting running tasks. This is very similiar to an operating system running on a system with a single CPU core.
+
+Their advantages are:
+%
+\begin{itemize}
+\item They allow pseudo concurrent processing without endangering the interpreter's internal consistency.
+\item They support using a naive single threaded garbage collector.
+\item Green threads are very light weight with low memory overhead and close to zero creation time.
+\item The interpreter controls the point at which a green thread is preempted.
+\end{itemize}
+
+Their disadvantages are:
+%
+\begin{itemize}
+\item They do not allow more than one CPU core to be used for computations
+\item Blocking calls like I/O block the whole interpreter including other green threads.
+\item The interpreter has to contain logic and timers to control green threads.
+\end{itemize}
+%
+	Chandon's green\_threads branch
+
+\chapter{Design of Hybrid Threads (3)}
+
+\chapter{Implementation of Hybrid Threads (15)}
+
+\section{Runloops (1)}
+
+\section{The Scheduler (4)}
+
+\section{Threads (5)}
+
+\subsection{Creation (1)}
+
+\subsection{Proxies (2)}
+
+\subsection{Writing shared data (2)}
+
+\subsection{Garbage Collection (3)}
+
+\chapter{Tests and Benchmarks (4)}
+
+\chapter{Conclusion, Further Work and Experiences (3)}
+
+\begin{itemize}
+\item replace thread\_data->interp\_lock usage by preallocated proxy objects
+\item allow threads to create threads
+\item allow multi level proxying (don't create a proxy for a proxy, unpack first)
+\end{itemize}
+
+\MakeBibliography{References, Literature (1)}
+
+\include{messbox}
+\end{document}
