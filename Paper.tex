@@ -46,7 +46,7 @@ Brian "benabik" Gernhardt for lurking in the IRC channel and at least trying to 
 
 \chapter{Introduction and Motivation (3)}
 
-On July 19th 2000, the Perl 6 design process was announced. Perl 5 had been a very flexible and widely used programming language but had started to show it's age and suffered from early design decisions. The Perl interpreter is written in C and has accumulated a lot of cruft over the years. The general consensus among the core developers was that the code had reached a state where maintenance was approaching impossibility. [http://use.perl.org/~masak/journal/40451]. An attempt to reimplement these internals had failed but led to the decision that the interpreter for a Perl 6 language should be developed independently of the needs of Perl 5. Since the Perl 6 syntax was very much in flux (and parts of it still are) the designers of these new internals tried to work very independently of any syntax related questions. [http://www.developer.com/lang/perl/article.php/10940\_3076571\_3/Perl-6-and-the-Parrot-Project.htm]. Taking up the name born in an April Fool's Day joke announcing the mergin of the Perl and Python programming languages, these new internals were called Parrot.
+On July 19th 2000, the Perl 6 design process was announced. Perl 5 had been a very flexible and widely used programming language but had started to show it's age and suffered from early design decisions. The Perl interpreter is written in C and has accumulated a lot of cruft over the years. The general consensus among the core developers was that the code had reached a state where maintenance was approaching impossibility. [http://use.perl.org/~masak/journal/40451]. An attempt to reimplement these internals had failed but led to the decision that the interpreter for a Perl 6 language should be developed independently of the needs of Perl 5. Since the Perl 6 syntax was very much in flux (and parts of it still are) the designers of these new internals tried to work very independently of any syntax related questions. [http://www.developer.com/lang/perl/article.php/10940\_3076571\_3/Perl-6-and-the-Parrot-Project.htm]. Taking up the name born in an April Fool's Day joke announcing the mergin of the Perl and Python programming languages, these new internals were called Parrot. [http://www.perl.com/pub/2001/04/01/parrot.htm]
 
 Parrot evolved from being just the interpreter for the new version of Perl to being a language independent virtual machine providing features like garbage collection, exception handling and dynamic typing. At the time when the Parrot project started, the Java and .NET virtual machines were widely used, but both targeted statically typed languages. Parrot thus filled a quickly growing niche.
 
@@ -87,15 +87,48 @@ This paper suggests a new approach based on a hybrid threading system. So called
 
 \chapter{Parrot (4)}
 
-	July 19, 2000, Perl 6 design process announced
-	http://www.perl.com/pub/2001/04/01/parrot.htm
-	April Fool's Day joke
+Parrot consists of the virtual machine (also called interpreter), and various tools to facilitate the implementation of programming languages on top of the Parrot VM (the Parrto Compiler Toolkit). In this paper, we concentrate on the virtual machine itself. The interpreter itself is written in C. Example code and testcases are written in PIR (Parrot Intermediate Representation) a high level assembly language which abstracts away register allocations and function calling conventions.
 
-	Historical development (1)
+Contrary to other widely used virtual machines like the JVM or the CLR which are stack based, Parrot mirrors contemporary hardware CPUs more closely by being register based. The rationale behind giving up the simplicity of a stack based implementation is the hope of simplifying just in time compilation and improved performance of nested function and method calls.
+
+The current design uses four sets of registers with each and unlimited number of usable registers. The four sets are:
+%
+\begin{itemize}
+\item integer
+\item floating point
+\item string
+\item polymorphic container (PMC)
+\end{itemize}
+
+The first three should be self explanatory. Strings in Parrot are a low level type with the interpreter handling all memory allocation issues and Unicode encoding. String values themselves are immutable.
+
+\section{PMCs}
+
+PMCs are containers for all higher level types such as objects, arrays, hash tables or code. Thus they are very similar to Python's PythonObject types. PMCs are defined by C structs and are fully garbage collected. Their definition looks like:
+\begin{CCode}
+struct PMC {
+    Parrot_UInt    flags;
+    VTABLE         *vtable;             /* Pointer to vtable. */
+    DPOINTER       *data;               /* Pointer to attribute structure. */
+    PMC            *_metadata;          /* Pointer to metadata PMC. */
+};
+\end{CCode}
+In short it contains a pointer to a type specific data structure and some meta data. The vtable is where the type's behaviour is defined. It contains a long list of function pointers forming Parrot's unified type interface. This interface is a union of numeric, string, array, hash and object like behaviours. For example the  \textit{get\_integer} function returns an integer value for the data type. For a simple \textit{int} it's the contained value. For an array it may be the number of elements. The \textit{find\_method} function makes user defined methods of objects possible.
+
+In this way, a language implementor can define the basic types of the language and available operations on them. For each vtable entry, there is a corresponding op code in Parrot's bytecode. Thus an \textit{inc \$P0} instruction is calling the \textit{increment} vtable function of the PMC contained in the \textit{\$P0} register.
+
+\section{Continuation passing}
+\section{Runloops}
+\section{Exception handling}
+\section{Garbage collector}
+
+\section{Historical development (1)}
 
 \chapter{Concurrency in other Programming Platforms (5)}
 
+\section{Java}
 \section{Python}
+\section{Erlang}
 
 \chapter{Green threads (3)}
 
@@ -117,10 +150,14 @@ Their disadvantages are:
 \item Blocking calls like I/O block the whole interpreter including other green threads.
 \item The interpreter has to contain logic and timers to control green threads.
 \end{itemize}
-%
-	Chandon's green\_threads branch
+
+Green threads differ from coroutines in that the interpreter decides when a running task is to be preempted while a coroutine depends on manual yield calls.
+
+Chandon's green\_threads branch
 
 \chapter{Design of Hybrid Threads (3)}
+
+
 
 \chapter{Implementation of Hybrid Threads (15)}
 
