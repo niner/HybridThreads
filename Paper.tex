@@ -196,7 +196,7 @@ Advantages of green threads are:
 \item The interpreter controls the point at which a green thread is preempted.
 \item The interpreter controls the exact scheduling policy and may allow the user to influence it or even take over completely.
 \item Garbage collection can be implemented like in a single threaded process.
-\item Critical sections may simply be protected by disabling the scheduler.
+\item Critical sections may simply be protected by disabling the scheduler until the code is clear of the section.
 \end{itemize}
 %
 Disadvantages include:
@@ -220,13 +220,15 @@ Now if two threads simultainously try to do this, it may happen that both read t
 
 In a more complicated example, the array could have to resize it's data buffer to accomodate the new value. It would read the current size, allocate a new buffer, copy the values to the new buffer and then destroying the old one. Again if two threads try to do this simultainously, one of them could still be copying data, while the other is already at the point where it destroys the old buffer. This would lead to the copying thread accessing freed memory.
 
+If we bring garbage collection into the mix, the possibilities for corruption grow even more. At the point where the first thread needs to allocate the new buffer, the garbage collector could decide that it needs to run and clear some unused memory. It would have to traverse the object tree to mark alive objects. Between the mark and the sweep runs, the second thread could change the pointer to the buffer from the old one to the new one. So the old buffer would have been marked alive, while during the sweep run the new buffer would be in it's place, but not yet marked alive.
+
 \section{Green threads in Parrot}
 
 Parrot's green threads implementation is based on Nat Tuck's green\_threads branch developed during his Google Summer of Code internship.
 
 In Parrot green threads are called \textit{Task}. Each task is assigned a fixed amount of execution time. On expiry a timer callback sets a flag which is checked for at execution of every branch operation. Since the interpreter's state is well defined at this point, it's internal consistency is guaranteed. The same goes for the garbage collector. Since task preemption is only done while executing user level code, the GC can do it's work undisturbed and without the need for measures like locking. Since user level code is allowed to disable the scheduler, it can be guaranteed to run undisturbed through critical sections.
 
-The scheduler is implemented as a PMC (Parrot's polymorphic container type). The plan is to allow the user to subclass this PMC thus allowing very fine grained control over the scheduling policy.
+The scheduler is implemented as a PMC (Parrot's polymorphic container type). The plan is to allow the user to subclass this PMC thus allowing very fine grained control over the scheduling policy. Features a user could add this way would be for example giving different priorities to tasks or implementing the possibility to suspend and resume a task.
 
 \chapter{Design of Hybrid Threads (3)}
 
