@@ -13,7 +13,7 @@
 \nummer{1010307037-A}
 \gegenstand{SWE}
 \semester{Wintersemester 2012}
-\betreuer{Heinz Dobler}
+\betreuer{Dr. Heinz Dobler}
 
 \frontmatter
 \maketitle
@@ -85,9 +85,15 @@ Currently Parrot does not have any threading support at all. The previous, defun
 
 This paper suggests a new approach based on a hybrid threading system. So called green threads are used to simplify the implementation of a nearly lock free multi threading implementation. This approach is based on a design by Andrew Whitworth and Nat Tuck.
 
+\chapter{Concurrency in other Programming Platforms (5)}
+
+\section{Java}
+\section{Python}
+\section{Erlang}
+
 \chapter{Parrot (4)}
 
-Parrot consists of the virtual machine (also called interpreter), and various tools to facilitate the implementation of programming languages on top of the Parrot VM (the Parrto Compiler Toolkit). In this paper, we concentrate on the virtual machine itself. The interpreter itself is written in C. Example code and testcases are written in PIR (Parrot Intermediate Representation) a high level assembly language which abstracts away register allocations and function calling conventions.
+Parrot consists of the virtual machine (also called interpreter), and various tools to facilitate the implementation of programming languages on top of the Parrot VM (the Parrot Compiler Toolkit). In this paper, we concentrate on the virtual machine itself. The interpreter itself is written in C. Example code and testcases are written in PIR (Parrot Intermediate Representation) a high level assembly language which abstracts away register allocations and function calling conventions.
 
 Contrary to other widely used virtual machines like the JVM or the CLR which are stack based, Parrot mirrors contemporary hardware CPUs more closely by being register based. The rationale behind giving up the simplicity of a stack based implementation is the hope of simplifying just in time compilation and improved performance of nested function and method calls.
 
@@ -117,47 +123,124 @@ In short it contains a pointer to a type specific data structure and some meta d
 
 In this way, a language implementor can define the basic types of the language and available operations on them. For each vtable entry, there is a corresponding op code in Parrot's bytecode. Thus an \textit{inc \$P0} instruction is calling the \textit{increment} vtable function of the PMC contained in the \textit{\$P0} register.
 
+\section{ParrotInterpreter}
+
+The interpreter itself is represented by a C struct called \textit{parrot\_interp\_t}. This structure contains pointers to the garbage collector's runtime data, the loaded types, vtables, the runloop, the current continuation and other global data. A pointer to this structure is passed to almost every function as the first parameter.
+
 \section{Continuation passing}
+
+Control flow is modeled in Parrot using continuation passing. A continuation is a data structure containing the a state of a program at a given point in it's execution. It contains all information which is needed to continue a program in a certain state, e.g. a call stack, the instruction pointer and contents of local variables. ``Calling'' a continuation means restoring the state encapsulated in the continuation.
+
+When a function is called, instead of pushing all this information on the stack, the function is given a return continuation as part of it's parameters. Returning from a function means calling the return continuation with possible return values stored in the registers where the calling code is expecting them. Continuation passing makes things like tail call optimization \footnote{When as the last statement of a function another function is called and it's value returned unchanged, the outer function may just pass on it's return continuation thus saving the need to create a new continuation and one step on returning from the nested function} very simple and as we will see later will be a very important piece in implementing green threads.
+
 \section{Runloops}
+
+A runloop is in principle the most inner loop executing bytecode in Parrot. It is also a data structure containing some information needed to support exception handling. When some operation in Parrot bytecode is calling a C function and this C function in turn is again executing Parrot bytecode, a nested runloop is started. Examples for such situations include calling a library function with a callback as parameter and exceptions thrown inside Parrot's C code which call a previously defined exception handler in user code.
+
 \section{Exception handling}
+
+Before entering a runloop, the \textit{setjmp} C function is used to save the current stack position and register contents to a data structure stored in the runloop meta data. This is effectively creating something resembling a continuation at C level. When an exception is created within the interpreter, the runloop stack is searched for the runloop containing a suitable exception handler. \textit{longjmp} is then used to unwind the call stack up to the point where setjmp was called and the call environment restored. While having great similarities with continuations, this mechanism is more limited. It only allows to jump back to a point higher in the call stack.
+
 \section{Garbage collector}
+
+Parrot supports different garbage collector implementations which can be selected at interpreter startup. Currently there are four existing implementations of different algorithms:
+\begin{itemize}
+\item Inf: a GC for debugging purposes which never collects any garbage
+\item MS: a basic mark and sweep implementation
+\item MS2: a non-recursive mark and sweep implementation
+\item GMS: a generational, non-compacting, mark and sweep GC
+\end{itemize}
+with GMS being the default.
+
+A mark and sweep garbage collector operates in two phases. In the mark phase, starting from a known root set of objects, the GC follows pointers down the object tree, marking each encountered object as alive. In the sweep phase, all objects which are not alive are destroyed and the live flags reset.
+
+In a process with many objects, having to traverse the whole tree may take a considerable amount of time. To mitigate this, a generational garbage collector extends this algorithm by assuming that the longer an object has lived, the lower the chances are that it will become unused. So the objects are partitioned into different generations. The youngest generation would always be traversed while the older generations would be handled much less frequently or even never more at all.
 
 \section{Historical development (1)}
 
-\chapter{Concurrency in other Programming Platforms (5)}
-
-\section{Java}
-\section{Python}
-\section{Erlang}
-
 \chapter{Green threads (3)}
 
-"Green threads" or "lightweight threads" are threads which are managed by the virtual machine instead of by the operating system. The virtual machine contains a scheduler and support for preempting running tasks. This is very similiar to an operating system running on a system with a single CPU core.
+There are three possible ways how two subroutines could be (at least seemingly) run in parallel:
+\begin{itemize}
+\item Coroutines
+\item Green threads 
+\item Operating system threads
+\end{itemize}
 
-Their advantages are:
+\section{Coroutines}
+
+Coroutines are functions which retain their state between calls. Instead of returning, they yield control back to the calling function, possibly with an intermediate result returned. A very simple example in Python could look like:
+\begin{GenericCode}
+def counter():
+    for i in range(0, 100):
+	yield i
+\end{GenericCode}
+This function would return one integer for every call, counting from 0 to 100. For two functions to run in parallel, they have to cooperate. One by calling the other repeatedly and the callee by yielding control back to the caller.
+
+\section{Operating system threads}
+
+Operating system threads are like multiple processes running at the same time but share their memory. The operating system is responsible for giving each of these threads CPU time to run.
+
+\section {Green threads}
+
+"Green threads" or "lightweight threads" are threads which are managed by the virtual machine instead of by the operating system. The virtual machine contains a scheduler and support for preempting running tasks.
+Preemption means to suspend a task regardless of what it's currently doing and probably resuming it later on.
+This is an implementation of the many-to-one threading model very similiar to what an operating system running on a system with a single CPU core does.
+%
+Advantages of green threads are:
 %
 \begin{itemize}
 \item They allow pseudo concurrent processing without endangering the interpreter's internal consistency.
-\item They support using a naive single threaded garbage collector.
 \item Green threads are very light weight with low memory overhead and close to zero creation time.
+\item They do not depend on OS threading support
 \item The interpreter controls the point at which a green thread is preempted.
+\item The interpreter controls the exact scheduling policy and may allow the user to influence it or even take over completely.
+\item Garbage collection can be implemented like in a single threaded process.
+\item Critical sections may simply be protected by disabling the scheduler.
 \end{itemize}
-
-Their disadvantages are:
+%
+Disadvantages include:
 %
 \begin{itemize}
-\item They do not allow more than one CPU core to be used for computations
+\item They do not allow more than one CPU core to be used for computations.
 \item Blocking calls like I/O block the whole interpreter including other green threads.
 \item The interpreter has to contain logic and timers to control green threads.
 \end{itemize}
 
 Green threads differ from coroutines in that the interpreter decides when a running task is to be preempted while a coroutine depends on manual yield calls.
 
-Chandon's green\_threads branch
+Let's look at a simple example to explain why concurrent processing could endanger the interpreter's internal consistency. The basic problem is concurrent writes to shared data. Assume we have an implementation of an array class consisting of the field holding the data and the number of contained elements in a seperate member variable:
+\begin{CCode}
+pmclass ResizableIntegerArray auto_attrs provides array {
+    ATTR INTVAL   size;      /* number of INTVALs stored in this array */
+    ATTR INTVAL * int_array; /* INTVALs are stored here */
+\end{CCode}
+To append a new value, the array would have to read the current size, write the new value at the position size + 1 and then write the incremented size back into the member variable.
+Now if two threads simultainously try to do this, it may happen that both read the same size, write to the same position (with one overwriting the value of the other) and write back the same incremented size. In this case one of the appended values would be lost.
+
+In a more complicated example, the array could have to resize it's data buffer to accomodate the new value. It would read the current size, allocate a new buffer, copy the values to the new buffer and then destroying the old one. Again if two threads try to do this simultainously, one of them could still be copying data, while the other is already at the point where it destroys the old buffer. This would lead to the copying thread accessing freed memory.
+
+\section{Green threads in Parrot}
+
+Parrot's green threads implementation is based on Nat Tuck's green\_threads branch developed during his Google Summer of Code internship.
+
+In Parrot green threads are called \textit{Task}. Each task is assigned a fixed amount of execution time. On expiry a timer callback sets a flag which is checked for at execution of every branch operation. Since the interpreter's state is well defined at this point, it's internal consistency is guaranteed. The same goes for the garbage collector. Since task preemption is only done while executing user level code, the GC can do it's work undisturbed and without the need for measures like locking. Since user level code is allowed to disable the scheduler, it can be guaranteed to run undisturbed through critical sections.
+
+The scheduler is implemented as a PMC (Parrot's polymorphic container type). The plan is to allow the user to subclass this PMC thus allowing very fine grained control over the scheduling policy.
 
 \chapter{Design of Hybrid Threads (3)}
 
+Using green threads we're now solving the following problems which occur when trying to implement threading support:
+%
+\begin{itemize}
+\item How to ensure internal interpreter consistency when doing writes to shared data.
+\item How to handle garbage collection.
+\end{itemize}
 
+\section{Shared data}
+
+
+\section{Garbage Collection}
 
 \chapter{Implementation of Hybrid Threads (15)}
 
