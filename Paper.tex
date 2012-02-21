@@ -72,9 +72,9 @@ Many interpreters for dynamic languages like Python or Ruby handle this problem 
 
 \section{Current status}
 
-During these years of back and forth and failed attempts of adding threading support to Parrot, the Perl 6 specification evolved to a point where the largest parts of the language were covered and its features implemented in the compilers. The lack of concurrency primitives in Parrot prevents however prevents any progress in the area of concurrency support.
+During these years of back and forth and failed attempts of adding threading support to Parrot, the Perl 6 specification evolved to a point where the largest parts of the language were covered and its features implemented in the compilers. The lack of concurrency primitives in Parrot however prevents any progress in the area of concurrency support.
 
-Currently Parrot does not have any threading support at all. The previous, defunct implementation has been removed.
+Before my work on this paper, Parrot did not have any threading support at all. The previous, defunct implementation had been removed.
 
 This paper suggests a new approach based on a hybrid threading system. So called green threads are used to simplify the implementation of a nearly lock free multi threading implementation. This approach is based on a design by Andrew Whitworth and Nat Tuck.
 
@@ -88,7 +88,7 @@ This paper suggests a new approach based on a hybrid threading system. So called
 
 Parrot consists of the virtual machine (also called interpreter), and various tools to facilitate the implementation of programming languages on top of the Parrot VM (the Parrot Compiler Toolkit). In this paper, we concentrate on the virtual machine itself. The interpreter itself is written in C. Example code and testcases are written in PIR (Parrot Intermediate Representation) a high level assembly language which abstracts away register allocations and function calling conventions.
 
-Contrary to other widely used virtual machines like the JVM or the CLR which are stack based, Parrot mirrors contemporary hardware CPUs more closely by being register based. The rationale behind giving up the simplicity of a stack based implementation is the hope of simplifying just in time compilation and improved performance of nested function and method calls.
+Contrary to other widely used virtual machines like the JVM or the CLR which are stack based, Parrot mirrors contemporary hardware CPUs more closely by being register based. A stack based virtual machine usually fetches the operands of an operation from the top of a stack and puts the result back on top. Thus the operands chosen implicitely by ordering of the operations allowing the opcodes to be quite small. In a register based VM on the other hand each operation has to specify the operands explicitely. Compilers for stack machines are simpler because they do not have to care about register allocations and code is independent of prior or subsequent code. [http://static.usenix.org/events/vee05/full\_papers/p153-yunhe.pdf] The rationale behind giving up the simplicity of a stack based implementation is the hope of simplifying just in time compilation and improved performance of nested function and method calls.
 
 The current design uses four sets of registers with each and unlimited number of usable registers. The four sets are:
 %
@@ -153,12 +153,7 @@ In a process with many objects, having to traverse the whole tree may take a con
 
 \chapter{Green threads (3)}
 
-There are three possible ways how two subroutines could be (at least seemingly) run in parallel:
-\begin{itemize}
-\item Coroutines
-\item Green threads 
-\item Operating system threads
-\end{itemize}
+Green threads are one way to model concurrent control flows in a program. To get a better understanding of what they are and how they work, we will first discuss the possible options.
 
 \section{Coroutines}
 
@@ -168,15 +163,22 @@ def counter():
     for i in range(0, 100):
 	yield i
 \end{GenericCode}
-This function would return one integer for every call, counting from 0 to 100. For two functions to run in parallel, they have to cooperate. One by calling the other repeatedly and the callee by yielding control back to the caller.
+This function would return one integer for every call, counting from 0 to 100. An example usage would look like:
+\begin{GenericCode}
+x = counter()
+print x
+x = counter()
+print x
+\end{GenericCode}
+This example would print the numbers 0 and 1. As we can see, for the two functions to run in parallel, they have to cooperate. One by calling the other repeatedly and the callee by yielding control back to the caller.
 
 \section{Operating system threads}
 
-Operating system threads are like multiple processes running at the same time but share their memory. The operating system is responsible for giving each of these threads CPU time to run.
+Operating system threads are like multiple processes running at the same time but share their memory. The operating system is responsible for giving each of these threads CPU time to run. Operating system threads are the only of these options where more than one thread may be executed by the CPU(s) at the same time if the hardware permits.
 
 \section {Green threads}
 
-"Green threads" or "lightweight threads" are threads which are managed by the virtual machine instead of by the operating system. The virtual machine contains a scheduler and support for preempting running tasks.
+"Green threads" or "lightweight threads" are threads which are managed by the virtual machine instead of by the operating system. These threads only run pseudo parallel. The virtual machine contains a scheduler and support for preempting running tasks.
 Preemption means to suspend a task regardless of what it's currently doing and probably resuming it later on.
 This is an implementation of the many-to-one threading model very similiar to what an operating system running on a system with a single CPU core does.
 %
@@ -225,15 +227,33 @@ The scheduler is implemented as a PMC (Parrot's polymorphic container type). The
 
 \chapter{Design of Hybrid Threads (3)}
 
-Using green threads we're now solving the following problems which occur when trying to implement threading support:
+This chapter describes how green threads were used to solve the following problems which occur when trying to implement threading support:
 %
 \begin{itemize}
 \item How to ensure internal interpreter consistency when doing writes to shared data.
+\item How to implement critical sections.
 \item How to handle garbage collection.
 \end{itemize}
 
+In keeping the analogy of the interpreter being a software CPU, multithreading is implemented by having a separate interpreter with it's own register set for each thread. When a user starts a new task, the scheduler first looks for an idle thread. If one can be found, the task is scheduled on the thread's interpreter. If none can be found, a new thread with a new interpreter is started. Parrot tries to optimize the number of utilized threads by creating at most one for each CPU core in the system. If more tasks are started than the maximum number of threads, the tasks are distributed evenly among the running interpreters. This is effectively an implementation of the N:M threading model.
+
 \section{Shared data}
 
+As described in the introduction, cross thread writes to shared data may endanger the internal consistency of the interpreter. Traditionally the response to this problem is the use of locks of varying granularity. Fine grained locking allows code to run well parallelized but taking and releasing locks also costs performance. It not only increases the instruction count and memory accesses but it also forces the CPU cores to coordinate and thus communicate. Even a seemingly simple operation like an atomic increment may take two orders of magnitude longer than a normal increment [http://irl.cs.ucla.edu/~yingdi/paperreading/smp\_locking.pdf]. While the gain through being able to utilize multiple CPU cores may offset this cost, it is still impacting the very common case of having only a single thread running.
+
+Too coarse locking on the other hand would reduce scalability and the performance gains through parallel execution. In the extreme case of having a global interpreter lock it may even effectively serialize all computations costing much of the benefits of using threads in the first place.
+
+The other problem with locking is the possibility of introducing dead locks. For example, two functions F1 and F2 both use two resources A and B protected by locks. If F1 first locks A and then tries to lock B while F2 has already locked B and is now trying to lock A, the program would come to a halt. Both functions would be left waiting for the other to unlock the resource which will never happen. With fine grained locking the possibilities for such bugs grow quickly. At the same time it's easy to miss a case where a lock would be appropriate leading to difficult to diagnose corruption bugs.
+
+The solution for these problems implemented for this paper is to side step them altogether by disallowing write access to shared data. The programmer (or in most cases the compiler) is obliged to declare a list of all shared variables before a newly created task is started. The interpreter would then create proxy objects for these variables which the task can use to access the data. These proxies contain references to the original objects. They use these references to forward all reading vtable functions to the originals. Write access on the other hand would lead to a runtime error.
+
+In other words all data is owned by the thread creating it and only the owner may write to it. Other threads have only read access.
+
+For threads to be able to communicate with their creators and other threads, they still need to write to shared data. This is where green threads come into play. Since green threads are very light weight, it is feasible for a thread to create a task just for updating a variable. This task would be scheduled on the interpreter owning this variable. To reduce latency, the task is flagged to run immediately. The data owning interpreter would preempt the currently running task and process the new write task. Put another way, the data owning interpreter is simply told what to write to it's variables, so other threads don't have to.
+
+\section{Critical Sections}
+
+In this scheme critical sections can simply be implemented by disabling preemption till the code is clear of the section. With other threads not being allowed to write to the data and the current task running uninterrupted it it guaranteed to complete without the data being changed from outside.
 
 \section{Garbage Collection}
 
