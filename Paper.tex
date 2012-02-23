@@ -241,7 +241,7 @@ In keeping the analogy of the interpreter being a software CPU, multithreading i
 
 As described in the introduction, cross thread writes to shared data may endanger the internal consistency of the interpreter. Traditionally the response to this problem is the use of locks of varying granularity. Fine grained locking allows code to run well parallelized but taking and releasing locks also costs performance. It not only increases the instruction count and memory accesses but it also forces the CPU cores to coordinate and thus communicate. Even a seemingly simple operation like an atomic increment may take two orders of magnitude longer than a normal increment [http://irl.cs.ucla.edu/~yingdi/paperreading/smp\_locking.pdf]. While the gain through being able to utilize multiple CPU cores may offset this cost, it is still impacting the very common case of having only a single thread running.
 
-Too coarse locking on the other hand would reduce scalability and the performance gains through parallel execution. In the extreme case of having a global interpreter lock it may even effectively serialize all computations costing much of the benefits of using threads in the first place.
+Too coarse locking on the other hand would reduce scalability and the performance gains through parallel execution by having threads wait for extended periods for locks to become open. In the extreme case of having a global interpreter lock it may even effectively serialize all computations costing much of the benefits of using threads in the first place.
 
 The other problem with locking is the possibility of introducing dead locks. For example, two functions F1 and F2 both use two resources A and B protected by locks. If F1 first locks A and then tries to lock B while F2 has already locked B and is now trying to lock A, the program would come to a halt. Both functions would be left waiting for the other to unlock the resource which will never happen. With fine grained locking the possibilities for such bugs grow quickly. At the same time it's easy to miss a case where a lock would be appropriate leading to difficult to diagnose corruption bugs.
 
@@ -268,6 +268,18 @@ Separation of memory domains is a problem for objects which are only referenced 
 \chapter{Implementation of Hybrid Threads (15)}
 
 \section{Runloops (1)}
+
+Runloops are created whenever a part of Parrot C internals start to execute bytecode. This could be simply at interpreter startup to start the actual program to execute or when some library function needs to execute a user callback. An exception handler could also be such a callback. Each runloop has a unique id. These ids are numbered from 0 and simply increased by 1 whenever a new runloop is created.
+
+When an exception is thrown, Parrot searches for a previously set up exception handler and executes it. As part of exception handling finalization, it cleans up, freeing any information no longer needed. The exception handler does not necessarily have to have been set up in the same runloop which the exception has been thrown from. Parrot uses the runloop id to identifiy such situations and free the nested runloops up to the level of the exception handler.
+
+A continuation also contains the id of the runloop in which it has been created. When resuming a preempted task, this id would not be the same as the one of the runloop created for executing its code. This would lead to Parrot not finding the correct runloop when finalizing an exception.
+
+To mitigate this, the \textit{reset\_runloop\_id\_counter(interp)} function is used to reset the global runloop id counter back to 0 when resuming a task. This way the task retains the same runloop id over its life time.
+
+If Parrot were to preempt a task while it is executing a nested runloop, it would have to somehow capture not only the interpreter's current state but also the C stack between the outermost runloop and the currently executing one. It would also have to recreate these call and runloop stacks when resuming the task. Otherwise the task would be ended as soon as the executing callback would be completed since instead of some C function called by an op in the bytecode, the scheduler is owner of the runloop.
+
+Thus the scheduler checks for the current runloop id and does not preempt a task if it is currently running a nested runloop. Furthermore even a manual yield to another task is not possible in such a situation. The only way to solve this problem would be to get rid of nested runloops in the interpreter.
 
 \section{The Scheduler (4)}
 
