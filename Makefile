@@ -3,6 +3,7 @@ all: Paper.pdf clean-temp
 
 Paper.pdf: Paper.tex
 	latex --output-format=pdf Paper.tex
+	latex --output-format=pdf Paper.tex
 	scp Paper.pdf niner.name:public_html/Hybrid_Threads_for_the_Parrot_VM.pdf
 
 clean-temp:

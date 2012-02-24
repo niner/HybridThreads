@@ -127,6 +127,7 @@ Control flow is modeled in Parrot using continuation passing. A continuation is 
 When a function is called, instead of pushing all this information on the stack, the function is given a return continuation as part of its parameters. Returning from a function means calling the return continuation with possible return values stored in the registers where the calling code is expecting them. Continuation passing makes things like tail call optimization \footnote{When as the last statement of a function another function is called and its value returned unchanged, the outer function may just pass on its return continuation thus saving the need to create a new continuation and one step on returning from the nested function} very simple and as we will see later will be a very important piece in implementing green threads.
 
 \section{Runloops}
+\label{sec:Runloops}
 
 A runloop is in principle the most inner loop executing bytecode in Parrot. It is also a data structure containing some information needed to support exception handling. When some operation in Parrot bytecode is calling a C function and this C function in turn is again executing Parrot bytecode, a nested runloop is started. Examples for such situations include calling a library function with a callback as parameter and exceptions thrown inside Parrot's C code which call a previously defined exception handler in user code.
 
@@ -265,25 +266,53 @@ Since cross threaded writes are already forbidden and all read access to other t
 
 Separation of memory domains is a problem for objects which are only referenced from other threads. But since all objects which could be accessed from other threads have to be pushed onto the Task object representing such threads, they can still be referenced from there.
 
-\chapter{Implementation of Hybrid Threads (15)}
+\chapter{Implementation of Hybrid Threads (13)}
+
+\section{The Scheduler (4)}
+
+The scheduler is the place where most of the green thread logic is implemented. It's functions use the prefix \textit{Parrot\_cx} and are located in \textit{src/scheduler.c}.
+
+\textit{Parrot\_cx\_init\_scheduler} is called from \textit{Parrot\_interp\_initialize\_interpreter} whenever a new interpreter is created, e.g. on interpreter startup and whenever a new thread is created. It creates the scheduler PMC and sets up alarm singal handling.
+
+The scheduler is hooked into the system by replacing the call to execute the \textit{main\_sub} by a call to \textit{Parrot\_cx\_begin\_execution}. The latter creates the main task using \textit{main\_sub} as the task's code. This task is then put onto the run queue. The scheduler timer gets enabled and control given to \textit{Parrot\_cx\_outer\_runloop}.
+
+\textit{Parrot\_cx\_outer\_runloop} is the core loop taking tasks from the run queue and executing them. Despite its name, it should not be confused with runloops discussed in section~\ref{sec:Runloops}. \textit{Parrot\_cx\_outer\_runloop} actually consists of two nested loops. The inner loop simply fetches tasks and executes as long as tasks are available. Even when all tasks are finished there may still be alarms pending which upon expiry would trigger new tasks to be scheduled. For this reason there's an outer loop checking for pending alarms and if there are putting the thread to sleep until the next alarm expires.
+
+\textit{Parrot\_cx\_next\_task} contains the code to take the next task from the run queue and executing it. Before calling the task, it checks if there are other tasks still in the queue. Only if other tasks are waiting, task preemption gets enabled. Otherwise the current task would run until it finishes by itself, schedules other tasks or an alarm expires. this is an important optimization reducing the runtime overhead of green threads in the important single tasking case essentially to 0.
+
+To enable task preemption, \textit{Parrot\_cx\_enable\_preemption} sets a flag on the scheduler PMC and uses \textit{Parrot\_cx\_set\_scheduler\_alarm} to set an alarm at a point \textit{PARROT\_TASK\_SWITCH\_QUANTUM} milliseconds in the future.
+
+When an alarm is triggered, Parrot only increments the global \textit{alarm\_serial}. This serial is checked for changes by \textit{Parrot\_alarm\_check} which is called by \textit{Parrot\_cx\_check\_scheduler}. This function in turn is called once for every \textit{branch} op. When the serial is different from the last check or the \textit{SCHEDULER\_wake\_requested} flag is set, \textit{Parrot\_cx\_check\_scheduler} wakes the scheduler by calling \textit{Parrot\_cx\_run\_scheduler}.
+
+Since POSIX alarms can only be delivered to the main thread of a process, \textit{Parrot\_cx\_run\_scheduler} uses \textit{Parrot\_thread\_notify\_threads} to relay alarms to other thread's schedulers. For this purpose every thread has a pipe which \textit{Parrot\_thread\_notify\_threads} writes a dummy byte to. The next step for \textit{Parrot\_cx\_run\_scheduler} is to check for any expired alarms using \textit{Parrot\_cx\_check\_alarms}. An alarm contains a task as callback. On expiry this callback gets scheduled for immediate execution. As alarm signals do not contain any information about their origin, the scheduler does not know if the alarm was scheduled by user code or if it's the scheduler's preemption alarm. \textit{Parrot\_cx\_check\_quantum} is therefore used to check if the current task has used its assigned quantum and if it should be preempted.
+
+Preemption of a task is implemented in \textit{Parrot\_cx\_preempt\_task}. It uses \textit{Parrot\_cx\_stop\_task} to create a continuation at the current point of execution and store it as the task's code. The task itself is then appended at the end of the run queue. The NULL opcode return value is propagated all the way up through the stack back to the \textit{branch} op checking for alarms. The op then recognizes this as the signal to stop processing and to exit the runloop.
+
+The control flow ends up back at \textit{Parrot\_cx\_next\_task} at the point after executing the task at which it returns to \textit{Parrot\_cx\_outer\_runloop}.
+
+The \textit{schedule} op code is used to schedule a new task from user code. It uses \textit{Parrot\_cx\_schedule\_task} which starts new worker threads if needed and possible and pushes the task on the target thread's scheduler's task queue. If the target thread previously was executing only a single task, its preemption has been disabled for optimization as described above. So in this case \textit{Parrot\_cx\_schedule\_task} has to enable preemption to give the new task a chance to run.
+
+\textit{Parrot\_cx\_schedule\_immediate} is used in various places like at alarm expiry for putting a task to the head of the run queue and immediately causing preemption of the currently running task. It does this by setting \textit{SCHEDULER\_wake\_requested} and \textit{SCHEDULER\_resched\_requested} flags the same as when the preemption alarm expires. To be precise this mechanism leads to the current task being preempted at the next \textit{branch} op since this is the place when the mentioned flags will be checked.
+
+Alarms can be registered using \textit{Parrot\_cx\_schedule\_alarm}. It puts the alarm in the appropriate place in the ordered alarm list and uses \textit{Parrot\_alarm\_set} which sets the actual alarm but only if there's not another alarm already set for an earlier time since there can only be one POSIX alarm pending at any time.
+
+\textit{Parrot\_cx\_schedule\_sleep} is the actual implementation of the \textit{sleep} op. Like in\textit{Parrot\_cx\_preempt\_task}, \textit{Parrot\_cx\_stop\_task} is used to get an updated task at the current execution position, but instead of pushing this on the run queue, it is used as a callback for a newly set alarm. Again the NULL opcode is used to stop processing of the current task.
 
 \section{Runloops (1)}
 
-Runloops are created whenever a part of Parrot C internals start to execute bytecode. This could be simply at interpreter startup to start the actual program to execute or when some library function needs to execute a user callback. An exception handler could also be such a callback. Each runloop has a unique id. These ids are numbered from 0 and simply increased by 1 whenever a new runloop is created.
+Runloops are created whenever a part of Parrot's C internals starts to execute bytecode. This could be simply at interpreter startup to start the actual program to execute or when some library function needs to execute a user callback. An exception handler could also be such a callback. Each runloop has a unique id. These ids are numbered from 0 and simply increased by 1 whenever a new runloop is created.
 
 When an exception is thrown, Parrot searches for a previously set up exception handler and executes it. As part of exception handling finalization, it cleans up, freeing any information no longer needed. The exception handler does not necessarily have to have been set up in the same runloop which the exception has been thrown from. Parrot uses the runloop id to identifiy such situations and free the nested runloops up to the level of the exception handler.
 
 A continuation also contains the id of the runloop in which it has been created. When resuming a preempted task, this id would not be the same as the one of the runloop created for executing its code. This would lead to Parrot not finding the correct runloop when finalizing an exception.
 
-To mitigate this, the \textit{reset\_runloop\_id\_counter(interp)} function is used to reset the global runloop id counter back to 0 when resuming a task. This way the task retains the same runloop id over its life time.
+To mitigate this, the \textit{reset\_runloop\_id\_counter(interp)} function is used by \textit{Parrot\_cx\_outer\_runloop} to reset the global runloop id counter back to 0 when resuming a task. This way the task retains the same runloop id over its life time.
 
-If Parrot were to preempt a task while it is executing a nested runloop, it would have to somehow capture not only the interpreter's current state but also the C stack between the outermost runloop and the currently executing one. It would also have to recreate these call and runloop stacks when resuming the task. Otherwise the task would be ended as soon as the executing callback would be completed since instead of some C function called by an op in the bytecode, the scheduler is owner of the runloop.
+If Parrot were to preempt a task while it is executing a nested runloop, it would have to somehow capture not only the interpreter's current state but also the C stack between the outermost runloop and the currently executing one. It would also have to recreate these call and runloop stacks when resuming the task. Otherwise the task would be ended as soon as the executing callback would be completed since instead of some C function called by an op in the bytecode, the scheduler is the owner of the runloop.
 
 Thus the scheduler checks for the current runloop id and does not preempt a task if it is currently running a nested runloop. Furthermore even a manual yield to another task is not possible in such a situation. The only way to solve this problem would be to get rid of nested runloops in the interpreter.
 
-\section{The Scheduler (4)}
-
-\section{Threads (5)}
+\section{Threads (8)}
 
 \subsection{Creation (1)}
 
@@ -298,9 +327,11 @@ Thus the scheduler checks for the current runloop id and does not preempt a task
 \chapter{Conclusion, Further Work and Experiences (3)}
 
 \begin{itemize}
-\item replace thread\_data->interp\_lock usage by preallocated proxy objects
-\item allow threads to create threads
-\item allow multi level proxying (don't create a proxy for a proxy, unpack first)
+\item Windows implementation for timer/alarm handling
+\item Replace thread\_data->interp\_lock usage by preallocated proxy objects
+\item Allow threads to create threads
+\item Allow multi level proxying (don't create a proxy for a proxy, unpack first)
+\item Allow redistribution of tasks to other threads
 \end{itemize}
 
 \MakeBibliography{References, Literature (1)}
