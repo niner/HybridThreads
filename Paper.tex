@@ -268,7 +268,7 @@ A garbage collector has to traverse and process the entire tree of objects in me
 
 In previous attempts to implement threading support in Parrot, the answer to this problem was to disable the garbage collector while multiple threads are active. Other VMs solve this problem by suspending all threads while the GC is running. While multi threaded garbage collection algorithms exist, their implementation would have been to complex and brittle for this paper [http://doc.cat-v.org/inferno/concurrent\_gc/].
 
-Since cross threaded writes are already forbidden and all read access to other thread's data goes through the very narrow channel of proxy objects, forcing a complete separation of the thread's memory domains was only a small step. By having separate memory areas for each interpreter, it became possible to have each interpreter to run its own garbage collector. This way, the known to work single threaded GC implementation could be continued to be used.
+Since cross threaded writes are already forbidden and all read access to other thread's data goes through the very narrow channel of proxy objects, forcing a complete separation of the thread's memory domains was only a small step. By having separate memory areas for each interpreter, it became possible to have each interpreter to run its own garbage collector. This way, the known to work, single threaded GC implementation could be used nearly unchanged.
 
 Separation of memory domains is a problem for objects which are only referenced from other threads. But since all objects which could be accessed from other threads have to be pushed onto the Task object representing such threads, they can still be referenced from there.
 
@@ -416,6 +416,14 @@ Line 1 simply creates a new Task object. The example subroutine is used for the 
 \textit{schedule\_proxied} uses \textit{Parrot\_thread\_create\_local\_task} which in this case detects that the \textit{data} given as parameter for the task's \textit{code} is actually a proxy already and unwraps the proxied object. \textit{Parrot\_cx\_schedule\_immediate} is then used to make the data owning interpreter execute the task as soon as possible.
 
 \subsection{Garbage Collection (3)}
+
+Since each interpreter has its own garbage collector and consequenty its own memory areas and may only access data directly which it owns, the garbage collector can simply act as if there were no other threads. Thus the main work has been to clean up the interpreter structure itself and to replace references to global data by proxies. Only a few special cases had to be built into the GC itself. The global variable PMCNULL is used in many places in the code, but should be handled only by the main thread's garbage collector.
+
+Before the implementation of threading support, having multiple interpreter objects in the system was used to implement things like a safe compartment in which a code could be run in a restricted environment. For such cases it was useful to share the garbage collector between interpreters. This special handling had to be removed.
+
+Only the main thread is allowed to load additional bytecode or create new classes since it owns the data structures used to manage these things. Child threads use these via proxies. In previous implementation attempts code segments, classes and vtables have been copied for each new interpreter making thread startup a very costly operation while still causing subtle problems.
+
+Code segments and vtables are only marked by the main thread's garbage collector.
 
 \chapter{Tests and Benchmarks (4)}
 
