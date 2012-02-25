@@ -80,6 +80,8 @@ This paper suggests a new approach based on a hybrid threading system. So called
 
 \chapter{Concurrency in other Programming Platforms (5)}
 
+This chapter is talking about programming platforms. A platform is seen as a combination of a programming language and a runtime. For example for the Python programming language there are multiple runtimes with different implementations of threading support.
+
 \section{Java}
 \section{Python}
 \section{Erlang}
@@ -115,6 +117,8 @@ struct PMC {
 In short it contains a pointer to a type specific data structure and some meta data. The vtable is where the type's behaviour is defined. It contains a long list of function pointers forming Parrot's unified type interface. This interface is a union of numeric, string, array, hash and object like behaviours. For example the  \textit{get\_integer} function returns an integer value for the data type. For a simple \textit{int} it's the contained value. For an array it may be the number of elements. The \textit{find\_method} function makes user defined methods of objects possible.
 
 In this way, a language implementor can define the basic types of the language and available operations on them. For each vtable entry, there is a corresponding op code in Parrot's bytecode. Thus an \textit{inc \$P0} instruction is calling the \textit{increment} vtable function of the PMC contained in the \textit{\$P0} register.
+
+PMCs are implemented in .pmc files with method bodies written in C. These files get preprocessed to plain C before compliation.
 
 \section{ParrotInterpreter}
 
@@ -268,9 +272,9 @@ Separation of memory domains is a problem for objects which are only referenced 
 
 \chapter{Implementation of Hybrid Threads (13)}
 
-\section{The Scheduler (4)}
+\section{The Scheduler (3)}
 
-The scheduler is the place where most of the green thread logic is implemented. It's functions use the prefix \textit{Parrot\_cx} and are located in \textit{src/scheduler.c}.
+The scheduler is the place where most of the green thread logic is implemented. It consists of two parts: functions using the prefix \textit{Parrot\_cx} which are located in \textit{src/scheduler.c} and the scheduler PMC type containing the scheduler's data and public interface.
 
 \textit{Parrot\_cx\_init\_scheduler} is called from \textit{Parrot\_interp\_initialize\_interpreter} whenever a new interpreter is created, e.g. on interpreter startup and whenever a new thread is created. It creates the scheduler PMC and sets up alarm singal handling.
 
@@ -297,6 +301,27 @@ The \textit{schedule} op code is used to schedule a new task from user code. It 
 Alarms can be registered using \textit{Parrot\_cx\_schedule\_alarm}. It puts the alarm in the appropriate place in the ordered alarm list and uses \textit{Parrot\_alarm\_set} which sets the actual alarm but only if there's not another alarm already set for an earlier time since there can only be one POSIX alarm pending at any time.
 
 \textit{Parrot\_cx\_schedule\_sleep} is the actual implementation of the \textit{sleep} op. Like in\textit{Parrot\_cx\_preempt\_task}, \textit{Parrot\_cx\_stop\_task} is used to get an updated task at the current execution position, but instead of pushing this on the run queue, it is used as a callback for a newly set alarm. Again the NULL opcode is used to stop processing of the current task.
+
+\section{Scheduler PMC (1)}
+
+The scheduler PMC contains the following attributes:
+%
+\begin{itemize}
+\item PMC *task\_queue: List of tasks/green threads waiting to run
+\item Parrot\_mutex task\_queue\_lock: a lock protecting the task\_queue so other threads might access it safely
+\item PMC *alarms: List of future alarms ordered by time
+\item PMC *all\_tasks: Hash of all active tasks by ID
+\item UINTVAL next\_task\_id: ID to assign to the next created task
+\item Parrot\_Interp interp: A reference to the scheduler's interpreter.
+\end{itemize}
+
+\textit{push\_pmc} and \textit{unshift\_pmc} are used to add a task at the end respectively the beginning of the task\_queue. \textit{shift\_pmc} is used to fetch and remove a task from the tip of the task\_queue. \textit{get\_integer} returns the number of tasks in the task\_queue. These four methods use the task\_queue\_lock to make accessing the task\_queue thread safe.
+
+\textit{alarms} is list containing all pending alarms, sorted by their expiry time. Sorted insertion is used to keep alarms in order. Sorting makes it simple and efficient to retrieve all alarms that have expired at a certain point in time.
+
+The textit{active\_tasks} returns an array containing all tasks which have been run at least once and are not yet finished, e.g. they are currently being executed or are preempted.
+
+\section{Task PMC}
 
 \section{Runloops (1)}
 
