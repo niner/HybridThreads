@@ -231,6 +231,7 @@ In Parrot green threads are called \textit{Task}. Each task is assigned a fixed 
 The scheduler is implemented as a PMC (Parrot's polymorphic container type). The plan is to allow the user to subclass this PMC thus allowing very fine grained control over the scheduling policy. Features a user could add this way would be for example giving different priorities to tasks or implementing the possibility to suspend and resume a task.
 
 \chapter{Design of Hybrid Threads (3)}
+\label{cha:design}
 
 This chapter describes how green threads were used to solve the following problems which occur when trying to implement threading support:
 %
@@ -362,6 +363,7 @@ Thus the scheduler checks for the current runloop id and does not preempt a task
 \section{Threads (8)}
 
 \subsection{Creation (1)}
+\label{subsec:thread_creation}
 
 Each thread is represented by an instance of the ParrotInterpreter PMC. These interpreters are kept in the \textit{threads\_array} defined in \textit{src/thread.c}. It's a simple C array instead of one of Parrot's dynamic arrays which are implemented as PMCs because though ParrotInterpreter is implemented as a PMC itself, it's not fully garbage collected because of the bootstrapping issues this would create.
 
@@ -371,13 +373,37 @@ The task is then scheduled with the new interpreter's scheduler using \textit{Pa
 
 \textit{Parrot\_thread\_insert\_thread} is used to put the new interpreter into the \textit{threads\_array}.
 
-\textit{Parrot\_thread\_run} is the function where the actual operating system thread is created. It uses macros defined in the \textit{include/parrot/thr\_*.h} files which act as an OS abstraction layer.
+\textit{Parrot\_thread\_run} is the function where the actual operating system thread is created. It uses macros defined in the \textit{include/parrot/thr\_*.h} include files which act as an OS abstraction layer.
 
-\textit{Parrot\_thread\_outer\_runloop} is used as the thread's main function. It's very similiar to \textit{Parrot\_cx\_outer\_runloop}. The most important difference is the way it waits for pending alarms in case no tasks are to be run. While \textit{Parrot\_cx\_outer\_runloop} waits for an alarm signal to arrive, \textit{Parrot\_thread\_outer\_runloop} waits for a dummy write to be written to its \textit{notifierfd} pipe by \textit{Parrot\_cx\_run\_scheduler}. In addition it's holding the \textit{interp->thread\_data->interp\_lock} lock while executing a task. This is the lock which \textit{Parrot\_cx\_schedule\_task} is taking during its call to \textit{Parrot\_thread\_schedule\_task} because the latter needs to create new objects local to the thread. As this could cause garbage collection to be triggered, the thread itself should not be executing code at the same time.
+\textit{Parrot\_thread\_outer\_runloop} is used as the thread's main function. It's very similiar to \textit{Parrot\_cx\_outer\_runloop}. The most important difference is the way it waits for pending alarms in case no tasks are to be run. While \textit{Parrot\_cx\_outer\_runloop} waits for an alarm signal to arrive, \textit{Parrot\_thread\_outer\_runloop} waits for a dummy to be written to its \textit{notifierfd} pipe by \textit{Parrot\_cx\_run\_scheduler}. In addition it's holding the \textit{interp->thread\_data->interp\_lock} lock while executing a task. This is the lock which \textit{Parrot\_cx\_schedule\_task} is taking during its call to \textit{Parrot\_thread\_schedule\_task} because the latter needs to create new objects local to the thread. As this could cause garbage collection to be triggered, the thread itself should not be executing code at the same time.
 
 \subsection{Proxies (2)}
 
+Proxies are the arbiters between threads. They are the only means for a thread to access another thread's data and are implemented by the \textit{Proxy} PMC type.
+
 \subsection{Writing shared data (2)}
+
+As described in chapter~\ref{cha:design} to write to shared data, a thread creates a small task and schedules it on the data owning interpreter. Such a task could look like:
+%
+\begin{GenericCode}
+.sub write_to_variable
+    .param pmc variable
+    variable = 1
+.end
+\end{GenericCode}
+%
+This is a subroutine with just one parameter. The variable passed in as this parameter is the one the task should write to. In this case the constant value 1 would be written to the variable. In PIR an assignment to a PMC gets translated as a method call. In this case the \textit{set\_integer\_native} would be called changing the variable's value. Since PMCs get passed by reference, it's the original variable which gets written to.
+
+The code to create the task would look like:
+%
+\begin{GenericCode}
+    write_task = new ['Task']
+    setattribute write_task, 'code', write_to_variable
+    setattribute write_task, 'data', shared_variable
+    interp.'schedule_proxied'(write_task, shared_variable)
+\end{GenericCode}
+%
+Line 1 simply creates a new Task object. The example subroutine is used for the task's \textit{code} attribute. \textit{shared\_variable} is used for \textit{data}. At this point \textit{shared\_variable} is actually the proxy object created for the shared integer PMC. The interpreter object contains a \textit{schedule\_proxied} method which is used to schedule the \textit{write\_task} on the thread owning the original variable. This owner thread's interpreter cannot be used directly for scheduling the task, since it would have to be stored in a register to be accessible to PIR code. But then the same problem as described in subsection~\ref{subsec:thread_creation} would occur with the ParrotInterpreter PMC tripping up the garbage collector.
 
 \subsection{Garbage Collection (3)}
 
