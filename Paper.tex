@@ -157,6 +157,10 @@ In a process with many objects, having to traverse the whole tree may take a con
 
 \section{Historical development (1)}
 
+The remainder of the previous threading implementation has been removed with the merging of the kill\_threads branch on September, 21st 2011. Previously much threading related code has been removed to clean up the code and improve performance. Since the existing threading support was known to be unreliable and seriously flawed, this was no trade off.
+
+A year before, Nat Tuck began working on a green\_threads branch during his Google Summer of Code internship. The feature got prototyped using pure PIR and then implemented in Parrot's core. He got it to work in simple cases and started to work on operating system thread support but the internship ended before the code was ready to be merged into the master branch. The code lay dormant until the work on this paper started about a year later.
+
 \chapter{Green threads (3)}
 
 Green threads are one way to model concurrent control flows in a program. To get a better understanding of what they are and how they work, we will first discuss the possible options.
