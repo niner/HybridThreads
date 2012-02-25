@@ -391,7 +391,7 @@ As described in section~\ref{sec:PMCs} PMC source files to get preprocessed befo
 
 \subsection{Writing shared data (2)}
 
-As described in chapter~\ref{cha:design} to write to shared data, a thread creates a small task and schedules it on the data owning interpreter. Such a task could look like:
+As described in chapter~\ref{cha:design} to write to shared data, a thread creates a small task and schedules it on the data owning interpreter. An example task could look like this:
 %
 \begin{GenericCode}
 .sub write_to_variable
@@ -412,6 +412,8 @@ The code to create the task would look like:
 \end{GenericCode}
 %
 Line 1 simply creates a new Task object. The example subroutine is used for the task's \textit{code} attribute. \textit{shared\_variable} is used for \textit{data}. At this point \textit{shared\_variable} is actually the proxy object created for the shared integer PMC. The interpreter object contains a \textit{schedule\_proxied} method which is used to schedule the \textit{write\_task} on the thread owning the original variable. This owner thread's interpreter cannot be used directly for scheduling the task, since it would have to be stored in a register to be accessible to PIR code. But then the same problem as described in subsection~\ref{subsec:thread_creation} would occur with the ParrotInterpreter PMC tripping up the garbage collector.
+
+\textit{schedule\_proxied} uses \textit{Parrot\_thread\_create\_local\_task} which in this case detects that the \textit{data} given as parameter for the task's \textit{code} is actually a proxy already and unwraps the proxied object. \textit{Parrot\_cx\_schedule\_immediate} is then used to make the data owning interpreter execute the task as soon as possible.
 
 \subsection{Garbage Collection (3)}
 
