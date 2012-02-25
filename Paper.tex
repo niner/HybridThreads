@@ -274,7 +274,7 @@ Separation of memory domains is a problem for objects which are only referenced 
 
 \section{The Scheduler (3)}
 
-The scheduler is the place where most of the green thread logic is implemented. It consists of two parts: functions using the prefix \textit{Parrot\_cx} which are located in \textit{src/scheduler.c} and the scheduler PMC type containing the scheduler's data and public interface.
+The scheduler is the place where most of the green thread logic is implemented. It consists of two parts: functions using the prefix \textit{Parrot\_cx} which are located in \textit{src/scheduler.c} and the Scheduler PMC type containing the scheduler's data and public interface.
 
 \textit{Parrot\_cx\_init\_scheduler} is called from \textit{Parrot\_interp\_initialize\_interpreter} whenever a new interpreter is created, e.g. on interpreter startup and whenever a new thread is created. It creates the scheduler PMC and sets up alarm singal handling.
 
@@ -304,7 +304,7 @@ Alarms can be registered using \textit{Parrot\_cx\_schedule\_alarm}. It puts the
 
 \section{Scheduler PMC (1)}
 
-The scheduler PMC contains the following attributes:
+The Scheduler PMC contains the following attributes:
 %
 \begin{itemize}
 \item PMC *task\_queue: List of tasks/green threads waiting to run
@@ -315,13 +315,35 @@ The scheduler PMC contains the following attributes:
 \item Parrot\_Interp interp: A reference to the scheduler's interpreter.
 \end{itemize}
 
-\textit{push\_pmc} and \textit{unshift\_pmc} are used to add a task at the end respectively the beginning of the task\_queue. \textit{shift\_pmc} is used to fetch and remove a task from the tip of the task\_queue. \textit{get\_integer} returns the number of tasks in the task\_queue. These four methods use the task\_queue\_lock to make accessing the task\_queue thread safe.
+\textit{push\_pmc} and \textit{unshift\_pmc} are used to add a task at the end respectively the beginning of the task\_queue. \textit{shift\_pmc} is used to fetch and remove a task from the tip of the \textit{task\_queue}. \textit{get\_integer} returns the number of tasks in the \textit{task\_queue}. These four methods use the \textit{task\_queue\_lock} to make accessing the \textit{task\_queue} thread safe. Thus the Scheduler PMC acts as a container while using \textit{task\_queue} to actually store the data.
 
 \textit{alarms} is list containing all pending alarms, sorted by their expiry time. Sorted insertion is used to keep alarms in order. Sorting makes it simple and efficient to retrieve all alarms that have expired at a certain point in time.
 
-The textit{active\_tasks} returns an array containing all tasks which have been run at least once and are not yet finished, e.g. they are currently being executed or are preempted.
+The \textit{active\_tasks} returns an array containing all tasks which have been run at least once and are not yet finished, e.g. they are currently being executed or are preempted.
 
 \section{Task PMC}
+
+The Task PMC contains the following attributes:
+%
+\begin{itemize}
+\item UINTVAL id: Unique identifier for the task
+\item FLOATVAL birthtime: The creation time stamp of the task
+\item Parrot\_Interp interp: The interpreter which created the task
+\item PMC *code: The code to run
+\item PMC *data: Additional data for the task given as parameter to \textit{code}
+\item INTVAL killed: Flag marking killed tasks
+\item PMC *waiters: Tasks waiting on this one
+\item PMC *shared: List of variables shared with this task
+\item PMC *partner: Copy of this task on the other side of a GC barrier, meaning in another thread
+\end{itemize}
+
+The \textit{invoke} method is used to run the task. It first checks the \textit{killed} flag to see if the task has been killed while waiting in the task queue. If it's still alive, the current recursion depth is saved to a local variable. This is a workaround needed because \textit{Parrot\_Sub\_invoke} which ends up being called when invoking the task's \textit{code} increments the recursion depth, but it does not get decremented anymore in case the task got preempted. This would lead to an ``recursion depth exceeded'' exception when many tasks are invoked during a program's runtime. The next steps are to add the task to the list of active tasks and to invoke the task's \textit{code}. \textit{data} is an optional parameter to the subroutine given as \textit{code}. Since this may be a compound object, a single parameter can cover all use cases.
+
+If the task has been killed while being in the task queue or while running or it just ended, it gets removed from the list of active tasks and all tasks registered with this task's \textit{waiters} array are added to the scheduler's task queue to be run.
+
+\textit{push\_pmc} and \textit{pop\_pmc} are used to add or remove variables to the task's list of shared data. For these variables, proxies will be created when the task is run on a different thread.
+
+The \textit{kill} method is used to set the task's \textit{killed} flag.
 
 \section{Runloops (1)}
 
