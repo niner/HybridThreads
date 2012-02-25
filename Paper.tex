@@ -104,6 +104,7 @@ The current design uses four sets of registers with each and unlimited number of
 The first three should be self explanatory. Strings in Parrot are a low level type with the interpreter handling all memory allocation issues and Unicode encoding. String values themselves are immutable.
 
 \section{PMCs}
+\label{sec:PMCs}
 
 PMCs are containers for all higher level types such as objects, arrays, hash tables or code. Thus they are very similar to Python's PythonObject types. PMCs are defined by C structs and are fully garbage collected. Their definition looks like:
 \begin{CCode}
@@ -379,7 +380,14 @@ The task is then scheduled with the new interpreter's scheduler using \textit{Pa
 
 \subsection{Proxies (2)}
 
-Proxies are the arbiters between threads. They are the only means for a thread to access another thread's data and are implemented by the \textit{Proxy} PMC type.
+Proxies are the arbiters between threads. They are the only means for a thread to access another thread's data and are implemented by the \textit{Proxy} PMC type. This type has only to attributes, none of which are garbage collected:
+%
+\begin{itemize}
+\item PMC *target: The PMC this object proxies to
+\item Parrot\_Interp interp: The interpreter owning target
+\end{itemize}
+
+As described in section~\ref{sec:PMCs} PMC source files to get preprocessed before compilation by a C compiler. This preprocessing gets done by the \textit{tools/build/pmc2c.pl} Perl script. This script got extended by implementing the \textit{Parrot::Pmc2c::PMC::Proxy} module which creates default implementations for all vtable functions not otherwise defined in the \textit{proxy.pmc} file. The default implementation for all writing functions would just call \textit{cant\_do\_write\_method} which creates a runtime exception. All other methods call the vtable method of the same name on the \textit{target} passing \textit{interp} as the current interpreter and all other parameters unchanged. If the method returns a PMC, another proxy object is created and wrapped around it so it may be safely returned to the caller.
 
 \subsection{Writing shared data (2)}
 
