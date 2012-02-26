@@ -23,7 +23,7 @@
 
 Andrew "whiteknight" Whitworth for laying the foundations for my work, being of tremendous help at all stages of the project and for fixing some of my bugs.
 
-Nat "Chandon" Tuck for implementing green thread basics on which my work is based.
+Nat "Chandon" Tuck for implementing green thread basics on which my work is based on.
 
 Christoph "cotto" Otto for bringing me into the Parrot project.
 
@@ -49,13 +49,13 @@ Being born at a time when Perl 6 still looked much more similiar to Perl 5 than 
 
 \section{Why is multi-threading support so important?}
 
-In the year 2005 development of faster CPUs shifted from increased speed of a single core to adding more cores. Modern processors contain up to 12 cores with even mobile phones having up to four. To utilize a modern CPU's power, code needs to be run in parallel. In UNIX (and thus Perl) tradition, this is accomplished using multiple processes which indeed is a good solution for many use cases. For many others like Perl 6's auto threading of hyper operators, the cost of process setup and communication would be prohibitively high except for very large data sets.
+In the year 2005 development of faster CPUs shifted from increased speed of a single core to adding more cores. Modern processors contain up to 12 cores with even mobile phones having up to four. To utilize a modern CPU's power, code needs to be run in parallel. In UNIX (and thus Perl) tradition, this is accomplished using multiple processes being a good solution for many use cases. For many others like Perl 6's auto threading of hyper operators, the cost of process setup and communication would be prohibitively high except for very large data sets.
 
 \section{Why is it so difficult to implement multi-threading support in Perl or Parrot?}
 
-Low level programming languages like C provide only the bare necessities, leaving the responsibility for preventing data corruption entirely to the user. A high level language like Perl 6 on the other hand offers complex and compund data types, handles garbage collection and a very dynamic object system. Even seeminlgy simple things like a method call can become very complex sequences. In a statically typed programming language the definition of a class is immutable. Thus calling a method on an object contains just the steps of determining the object's class, fetching the required method from this class and calling it. Calling the same method again may then even omit the first two steps since their results cannot change.
+Low level programming languages like C provide only the bare necessities, leaving the responsibility for preventing data corruption entirely to the user. A high level language like Perl 6 on the other hand offers complex and compund data types, handles garbage collection and a very dynamic object system. Even seeminlgy simple things like a method call can become very complex sequences. In a statically typed programming language the definition of a class is immutable. Thus calling a method on an object contains just the steps of determining the object's class, fetching the required method from this class and calling it. Calling the same method again can then even omit the first two steps since their results cannot change.
 
-In a dynamic language, the object may change its class at runtime. The inheritance hierarchy of the class may be changed by adding or removing parent classes. Methods may be added to or removed from classes (or objects) at runtime and even the way to find a method of a class may change. So a simple method call may result in the following steps:
+In a dynamic language, the object may change its class at runtime. The inheritance hierarchy of the class may be changed by adding or removing parent classes. Methods may be added to or removed from classes (or objects) at runtime and even the way to find a method of a class may change. So a simple method call results in the following steps:
 %
 \begin{itemize}
 \item determining the class of the object
@@ -88,7 +88,7 @@ This chapter is talking about programming platforms. A platform is seen as a com
 
 \chapter{Parrot (4)}
 
-Parrot consists of the virtual machine (also called interpreter), and various tools to facilitate the implementation of programming languages on top of the Parrot VM (the Parrot Compiler Toolkit). In this paper, we concentrate on the virtual machine itself. The interpreter itself is written in C. Example code and testcases are written in PIR (Parrot Intermediate Representation) a high level assembly language which abstracts away register allocations and function calling conventions.
+Parrot consists of the virtual machine (also called interpreter), and various tools to facilitate the implementation of programming languages on top of the Parrot VM (the Parrot Compiler Toolkit). This paper concentrates on the virtual machine itself. The interpreter itself is written in C. Example code and testcases are written in PIR (Parrot Intermediate Representation) a high level assembly language abstracting away register allocations and function calling conventions.
 
 Contrary to other widely used virtual machines like the JVM or the CLR which are stack based, Parrot mirrors contemporary hardware CPUs more closely by being register based. A stack based virtual machine usually fetches the operands of an operation from the top of a stack and puts the result back on top. Thus the operands chosen implicitely by ordering of the operations allowing the opcodes to be quite small. In a register based VM on the other hand each operation has to specify the operands explicitely. Compilers for stack machines are simpler because they do not have to care about register allocations and code is independent of prior or subsequent code. [http://static.usenix.org/events/vee05/full\_papers/p153-yunhe.pdf] The rationale behind giving up the simplicity of a stack based implementation is the hope of simplifying just in time compilation and improved performance of nested function and method calls.
 
@@ -115,7 +115,7 @@ struct PMC {
     PMC            *_metadata;          /* Pointer to metadata PMC. */
 };
 \end{CCode}
-In short it contains a pointer to a type specific data structure and some meta data. The vtable is where the type's behaviour is defined. It contains a long list of function pointers forming Parrot's unified type interface. This interface is a union of numeric, string, array, hash and object like behaviours. For example the  \textit{get\_integer} function returns an integer value for the data type. For a simple \textit{int} it's the contained value. For an array it may be the number of elements. The \textit{find\_method} function makes user defined methods of objects possible.
+In short it contains a pointer to a type specific data structure and some meta data. The vtable is where the type's behaviour is defined. It contains a long list of function pointers forming Parrot's unified type interface. This interface is a union of numeric, string, array, hash and object like behaviours. For example the  \textit{get\_integer} function returns an integer value for the data type. For a simple \textit{int} it is the contained value. For an array it may be the number of elements. The \textit{find\_method} function makes user defined methods of objects possible.
 
 In this way, a language implementor can define the basic types of the language and available operations on them. For each vtable entry, there is a corresponding op code in Parrot's bytecode. Thus an \textit{inc \$P0} instruction is calling the \textit{increment} vtable function of the PMC contained in the \textit{\$P0} register.
 
@@ -127,14 +127,14 @@ The interpreter itself is represented by a C struct called \textit{parrot\_inter
 
 \section{Continuation passing}
 
-Control flow is modeled in Parrot using continuation passing. A continuation is a data structure containing the a state of a program at a given point in its execution. It contains all information which is needed to continue a program in a certain state, e.g. a call stack, the instruction pointer and contents of local variables. ``Calling'' a continuation means restoring the state encapsulated in the continuation.
+Control flow is modeled in Parrot using continuation passing. A continuation is a data structure containing the a state of a program at a given point in its execution. It contains all information needed to continue a program in a certain state, e.g. a call stack, the instruction pointer and contents of local variables. ``Calling'' a continuation means restoring the state encapsulated in the continuation.
 
-When a function is called, instead of pushing all this information on the stack, the function is given a return continuation as part of its parameters. Returning from a function means calling the return continuation with possible return values stored in the registers where the calling code is expecting them. Continuation passing makes things like tail call optimization \footnote{When as the last statement of a function another function is called and its value returned unchanged, the outer function may just pass on its return continuation thus saving the need to create a new continuation and one step on returning from the nested function} very simple and as we will see later will be a very important piece in implementing green threads.
+When a function is called, instead of pushing all this information on the stack, the function is given a return continuation as part of its parameters. Returning from a function means calling the return continuation with possible return values stored in the registers where the calling code is expecting them. Continuation passing makes things like tail call optimization \footnote{When as the last statement of a function another function is called and its value returned unchanged, the outer function can just pass on its return continuation thus saving the need to create a new continuation and one step on returning from the nested function} very simple and as described in chapter~\ref{cha:green_threads} is a very important piece in implementing green threads.
 
 \section{Runloops}
 \label{sec:Runloops}
 
-A runloop is in principle the most inner loop executing bytecode in Parrot. It is also a data structure containing some information needed to support exception handling. When some operation in Parrot bytecode is calling a C function and this C function in turn is again executing Parrot bytecode, a nested runloop is started. Examples for such situations include calling a library function with a callback as parameter and exceptions thrown inside Parrot's C code which call a previously defined exception handler in user code.
+A runloop is in principle the most inner loop executing bytecode in Parrot. It is also a data structure containing some information needed to support exception handling. When some operation in Parrot bytecode is calling a C function and this C function in turn is again executing Parrot bytecode, a nested runloop is started. Examples for such situations include calling a library function with a callback as parameter and exceptions thrown inside Parrot's C code calling a previously defined exception handler in user code.
 
 \section{Exception handling}
 
@@ -144,14 +144,14 @@ Before entering a runloop, the \textit{setjmp} C function is used to save the cu
 
 Parrot supports different garbage collector implementations which can be selected at interpreter startup. Currently there are four existing implementations of different algorithms:
 \begin{itemize}
-\item Inf: a GC for debugging purposes which never collects any garbage
+\item Inf: a GC for debugging purposes never collecting any garbage
 \item MS: a basic mark and sweep implementation
 \item MS2: a non-recursive mark and sweep implementation
 \item GMS: a generational, non-compacting, mark and sweep GC
 \end{itemize}
 with GMS being the default.
 
-A mark and sweep garbage collector operates in two phases. In the mark phase, starting from a known root set of objects, the GC follows pointers down the object tree, marking each encountered object as alive. In the sweep phase, all objects which are not alive are destroyed and the live flags reset.
+A mark and sweep garbage collector operates in two phases. In the mark phase, starting from a known root set of objects, the GC follows pointers down the object tree, marking each encountered object as alive. In the sweep phase, all objects not being alive are destroyed and the live flags reset.
 
 In a process with many objects, having to traverse the whole tree may take a considerable amount of time. To mitigate this, a generational garbage collector extends this algorithm by assuming that the longer an object has lived, the lower the chances are that it will become unused. So the objects are partitioned into different generations. The youngest generation would always be traversed while the older generations would be handled much less frequently or even never more at all.
 
@@ -162,12 +162,13 @@ The remainder of the previous threading implementation has been removed with the
 A year before, Nat Tuck began working on a green\_threads branch during his Google Summer of Code internship. The feature got prototyped using pure PIR and then implemented in Parrot's core. He got it to work in simple cases and started to work on operating system thread support but the internship ended before the code was ready to be merged into the master branch. The code lay dormant until the work on this paper started about a year later.
 
 \chapter{Green threads (3)}
+\label{cha:green_threads}
 
-Green threads are one way to model concurrent control flows in a program. To get a better understanding of what they are and how they work, we will first discuss the possible options.
+Green threads are one way to model concurrent control flows in a program. To get a better understanding of what they are and how they work, the possible options are discussed first.
 
 \section{Coroutines}
 
-Coroutines are functions which retain their state between calls. Instead of returning, they yield control back to the calling function, possibly with an intermediate result returned. A very simple example in Python could look like:
+Coroutines are functions retaining their state between calls. Instead of returning, they yield control back to the calling function, possibly with an intermediate result returned. A very simple example in Python looks like:
 \begin{GenericCode}
 def counter():
     for i in range(0, 100):
@@ -180,7 +181,7 @@ print x
 x = counter()
 print x
 \end{GenericCode}
-This example would print the numbers 0 and 1. As we can see, for the two functions to run in parallel, they have to cooperate. One by calling the other repeatedly and the callee by yielding control back to the caller.
+This example would print the numbers 0 and 1. For the two functions to run in parallel, they have to cooperate. One by calling the other repeatedly and the callee by yielding control back to the caller.
 
 \section{Operating system threads}
 
@@ -188,8 +189,8 @@ Operating system threads are like multiple processes running at the same time bu
 
 \section {Green threads}
 
-"Green threads" or "lightweight threads" are threads which are managed by the virtual machine instead of by the operating system. These threads only run pseudo parallel. The virtual machine contains a scheduler and support for preempting running tasks.
-Preemption means to suspend a task regardless of what it's currently doing and probably resuming it later on.
+"Green threads" or "lightweight threads" are threads managed by the virtual machine instead of by the operating system. These threads only run pseudo parallel. The virtual machine contains a scheduler and support for preempting running tasks.
+Preemption means to suspend a task regardless of what it is currently doing and probably resuming it later on.
 This is an implementation of the many-to-one threading model very similiar to what an operating system running on a system with a single CPU core does.
 %
 Advantages of green threads are:
@@ -198,10 +199,10 @@ Advantages of green threads are:
 \item They allow pseudo concurrent processing without endangering the interpreter's internal consistency.
 \item Green threads are very light weight with low memory overhead and close to zero creation time.
 \item They do not depend on OS threading support
-\item The interpreter controls the point at which a green thread is preempted.
+\item The interpreter controls the point of preemption of a green thread.
 \item The interpreter controls the exact scheduling policy and may allow the user to influence it or even take over completely.
 \item Garbage collection can be implemented like in a single threaded process.
-\item Critical sections may simply be protected by disabling the scheduler until the code is clear of the section.
+\item Critical sections can simply be protected by disabling the scheduler until the code is clear of the section.
 \end{itemize}
 %
 Disadvantages include:
@@ -214,18 +215,18 @@ Disadvantages include:
 
 Green threads differ from coroutines in that the interpreter decides when a running task is to be preempted while a coroutine depends on manual yield calls.
 
-Let's look at a simple example to explain why concurrent processing could endanger the interpreter's internal consistency. The basic problem is concurrent writes to shared data. Assume we have an implementation of an array class consisting of the field holding the data and the number of contained elements in a seperate member variable:
+Let's look at a simple example to explain why concurrent processing can endanger the interpreter's internal consistency. The basic problem is concurrent writes to shared data. Assumeing an implementation of an array class consisting of the field holding the data and the number of contained elements in a seperate member variable:
 \begin{CCode}
 pmclass ResizableIntegerArray auto_attrs provides array {
     ATTR INTVAL   size;      /* number of INTVALs stored in this array */
     ATTR INTVAL * int_array; /* INTVALs are stored here */
 \end{CCode}
-To append a new value, the array would have to read the current size, write the new value at the position size + 1 and then write the incremented size back into the member variable.
+to append a new value, the array would have to read the current size, write the new value at the position size + 1 and then write the incremented size back into the member variable.
 Now if two threads simultainously try to do this, it may happen that both read the same size, write to the same position (with one overwriting the value of the other) and write back the same incremented size. In this case one of the appended values would be lost.
 
 In a more complicated example, the array could have to resize its data buffer to accomodate the new value. It would read the current size, allocate a new buffer, copy the values to the new buffer and then destroying the old one. Again if two threads try to do this simultainously, one of them could still be copying data, while the other is already at the point where it destroys the old buffer. This would lead to the copying thread accessing freed memory.
 
-If we bring garbage collection into the mix, the possibilities for corruption grow even more. At the point where the first thread needs to allocate the new buffer, the garbage collector could decide that it needs to run and clear some unused memory. It would have to traverse the object tree to mark alive objects. Between the mark and the sweep runs, the second thread could change the pointer to the buffer from the old one to the new one. So the old buffer would have been marked alive, while during the sweep run the new buffer would be in its place, but not yet marked alive.
+When garbage collection is brought into the mix, the possibilities for corruption grow even more. At the point where the first thread needs to allocate the new buffer, the garbage collector could decide that it needs to run and clear some unused memory. It would have to traverse the object tree to mark alive objects. Between the mark and the sweep runs, the second thread could change the pointer to the buffer from the old one to the new one. So the old buffer would have been marked alive, while during the sweep run the new buffer would be in its place, but not yet marked alive.
 
 \section{Green threads in Parrot}
 
@@ -238,7 +239,7 @@ The scheduler is implemented as a PMC (Parrot's polymorphic container type). The
 \chapter{Design of Hybrid Threads (3)}
 \label{cha:design}
 
-This chapter describes how green threads were used to solve the following problems which occur when trying to implement threading support:
+This chapter describes how green threads were used to solve the following problems occuring when trying to implement threading support:
 %
 \begin{itemize}
 \item How to ensure internal interpreter consistency when doing writes to shared data.
@@ -250,11 +251,11 @@ In keeping the analogy of the interpreter being a software CPU, multithreading i
 
 \section{Shared data}
 
-As described in the introduction, cross thread writes to shared data may endanger the internal consistency of the interpreter. Traditionally the response to this problem is the use of locks of varying granularity. Fine grained locking allows code to run well parallelized but taking and releasing locks also costs performance. It not only increases the instruction count and memory accesses but it also forces the CPU cores to coordinate and thus communicate. Even a seemingly simple operation like an atomic increment may take two orders of magnitude longer than a normal increment [http://irl.cs.ucla.edu/~yingdi/paperreading/smp\_locking.pdf]. While the gain through being able to utilize multiple CPU cores may offset this cost, it is still impacting the very common case of having only a single thread running.
+As described in the introduction, cross thread writes to shared data may endanger the internal consistency of the interpreter. Traditionally the response to this problem is the use of locks of varying granularity. Fine grained locking allows code to run well parallelized but taking and releasing locks also costs performance. It not only increases the instruction count and memory accesses but it also forces the CPU cores to coordinate and thus communicate. Even a seemingly simple operation like an atomic increment can take two orders of magnitude longer than a normal increment [http://irl.cs.ucla.edu/~yingdi/paperreading/smp\_locking.pdf]. While the gain through being able to utilize multiple CPU cores may offset this cost, it is still impacting the very common case of having only a single thread running.
 
-Too coarse locking on the other hand would reduce scalability and the performance gains through parallel execution by having threads wait for extended periods for locks to become open. In the extreme case of having a global interpreter lock it may even effectively serialize all computations costing much of the benefits of using threads in the first place.
+Too coarse locking on the other hand would reduce scalability and the performance gains through parallel execution by having threads wait for extended periods for locks to become open. In the extreme case of having a global interpreter lock it would even effectively serialize all computations costing much of the benefits of using threads in the first place.
 
-The other problem with locking is the possibility of introducing dead locks. For example, two functions F1 and F2 both use two resources A and B protected by locks. If F1 first locks A and then tries to lock B while F2 has already locked B and is now trying to lock A, the program would come to a halt. Both functions would be left waiting for the other to unlock the resource which will never happen. With fine grained locking the possibilities for such bugs grow quickly. At the same time it's easy to miss a case where a lock would be appropriate leading to difficult to diagnose corruption bugs.
+The other problem with locking is the possibility of introducing dead locks. For example, two functions F1 and F2 both use two resources A and B protected by locks. If F1 first locks A and then tries to lock B while F2 has already locked B and is now trying to lock A, the program would come to a halt. Both functions would be left waiting for the other to unlock the resource which will never happen. With fine grained locking the possibilities for such bugs grow quickly. At the same time it is easy to miss a case where a lock would be appropriate leading to difficult to diagnose corruption bugs.
 
 The solution for these problems implemented for this paper is to side step them altogether by disallowing write access to shared data. The programmer (or in most cases the compiler) is obliged to declare a list of all shared variables before a newly created task is started. The interpreter would then create proxy objects for these variables which the task can use to access the data. These proxies contain references to the original objects. They use these references to forward all reading vtable functions to the originals. Write access on the other hand would lead to a runtime error.
 
@@ -268,11 +269,11 @@ In this scheme critical sections can simply be implemented by disabling preempti
 
 \section{Garbage Collection}
 
-A garbage collector has to traverse and process the entire tree of objects in memory. If during this traversal another thread is changing this tree by creating new objects, moving them around in the tree or removing them, the garbage collector's data would be compromised. For example it could happen that the GC does not mark referenced objects alive because they were added to parents which already have been processed.
+A garbage collector has to traverse and process the entire tree of objects in memory. If during this traversal another thread is changing this tree by creating new objects, moving them around in the tree or removing them, the garbage collector's data would be compromised. For example it could happen that the GC does not mark referenced objects alive because they were added to parents having already been processed.
 
 In previous attempts to implement threading support in Parrot, the answer to this problem was to disable the garbage collector while multiple threads are active. Other VMs solve this problem by suspending all threads while the GC is running. While multi threaded garbage collection algorithms exist, their implementation would have been to complex and brittle for this paper [http://doc.cat-v.org/inferno/concurrent\_gc/].
 
-Since cross threaded writes are already forbidden and all read access to other thread's data goes through the very narrow channel of proxy objects, forcing a complete separation of the thread's memory domains was only a small step. By having separate memory areas for each interpreter, it became possible to have each interpreter to run its own garbage collector. This way, the known to work, single threaded GC implementation could be used nearly unchanged.
+Since cross threaded writes are already forbidden and all read access to other thread's data goes through the very narrow channel of proxy objects, forcing a complete separation of the thread's memory domains was only a small step. By having separate memory areas for each interpreter, it became possible to have each interpreter to run its own garbage collector. This way, the known to work, single threaded GC implementation can be used nearly unchanged.
 
 Separation of memory domains is a problem for objects which are only referenced from other threads. But since all objects which could be accessed from other threads have to be pushed onto the Task object representing such threads, they can still be referenced from there.
 
@@ -288,17 +289,17 @@ The scheduler is hooked into the system by replacing the call to execute the \te
 
 \textit{Parrot\_cx\_outer\_runloop} is the core loop taking tasks from the run queue and executing them. Despite its name, it should not be confused with runloops discussed in section~\ref{sec:Runloops}. \textit{Parrot\_cx\_outer\_runloop} actually consists of two nested loops. The inner loop simply fetches tasks and executes as long as tasks are available. Even when all tasks are finished there may still be alarms pending which upon expiry would trigger new tasks to be scheduled. For this reason there's an outer loop checking for pending alarms and if there are putting the thread to sleep until the next alarm expires.
 
-\textit{Parrot\_cx\_next\_task} contains the code to take the next task from the run queue and executing it. Before calling the task, it checks if there are other tasks still in the queue. Only if other tasks are waiting, task preemption gets enabled. Otherwise the current task would run until it finishes by itself, schedules other tasks or an alarm expires. this is an important optimization reducing the runtime overhead of green threads in the important single tasking case essentially to 0.
+\textit{Parrot\_cx\_next\_task} contains the code to take the next task from the run queue and executing it. Before calling the task, it checks if there are other tasks still in the queue. Only if other tasks are waiting, task preemption gets enabled. Otherwise the current task would run until it finishes by itself, schedules other tasks or an alarm expires. this is an optimization reducing the runtime overhead of green threads in the important single tasking case to 0.
 
 To enable task preemption, \textit{Parrot\_cx\_enable\_preemption} sets a flag on the scheduler PMC and uses \textit{Parrot\_cx\_set\_scheduler\_alarm} to set an alarm at a point \textit{PARROT\_TASK\_SWITCH\_QUANTUM} milliseconds in the future.
 
-When an alarm is triggered, Parrot only increments the global \textit{alarm\_serial}. This serial is checked for changes by \textit{Parrot\_alarm\_check} which is called by \textit{Parrot\_cx\_check\_scheduler}. This function in turn is called once for every \textit{branch} op. When the serial is different from the last check or the \textit{SCHEDULER\_wake\_requested} flag is set, \textit{Parrot\_cx\_check\_scheduler} wakes the scheduler by calling \textit{Parrot\_cx\_run\_scheduler}.
+When an alarm is triggered, Parrot only increments the global \textit{alarm\_serial}. This serial is checked for changes by \textit{Parrot\_alarm\_check} being called by \textit{Parrot\_cx\_check\_scheduler}. This function in turn is called once for every \textit{branch} op. When the serial is different from the last check or the \textit{SCHEDULER\_wake\_requested} flag is set, \textit{Parrot\_cx\_check\_scheduler} wakes the scheduler by calling \textit{Parrot\_cx\_run\_scheduler}.
 
-Since POSIX alarms can only be delivered to the main thread of a process, \textit{Parrot\_cx\_run\_scheduler} uses \textit{Parrot\_thread\_notify\_threads} to relay alarms to other thread's schedulers. For this purpose every thread has a pipe which \textit{Parrot\_thread\_notify\_threads} writes a dummy byte to. The next step for \textit{Parrot\_cx\_run\_scheduler} is to check for any expired alarms using \textit{Parrot\_cx\_check\_alarms}. An alarm contains a task as callback. On expiry this callback gets scheduled for immediate execution. As alarm signals do not contain any information about their origin, the scheduler does not know if the alarm was scheduled by user code or if it's the scheduler's preemption alarm. \textit{Parrot\_cx\_check\_quantum} is therefore used to check if the current task has used its assigned quantum and if it should be preempted.
+Since POSIX alarms can only be delivered to the main thread of a process, \textit{Parrot\_cx\_run\_scheduler} uses \textit{Parrot\_thread\_notify\_threads} to relay alarms to other thread's schedulers. For this purpose every thread has a pipe which \textit{Parrot\_thread\_notify\_threads} writes a dummy byte to. The next step for \textit{Parrot\_cx\_run\_scheduler} is to check for any expired alarms using \textit{Parrot\_cx\_check\_alarms}. An alarm contains a task as callback. On expiry this callback gets scheduled for immediate execution. As alarm signals do not contain any information about their origin, the scheduler does not know if the alarm was scheduled by user code or if it is the scheduler's preemption alarm. \textit{Parrot\_cx\_check\_quantum} is therefore used to check if the current task has used its assigned quantum and if it should be preempted.
 
 Preemption of a task is implemented in \textit{Parrot\_cx\_preempt\_task}. It uses \textit{Parrot\_cx\_stop\_task} to create a continuation at the current point of execution and store it as the task's code. The task itself is then appended at the end of the run queue. The NULL opcode return value is propagated all the way up through the stack back to the \textit{branch} op checking for alarms. The op then recognizes this as the signal to stop processing and to exit the runloop.
 
-The control flow ends up back at \textit{Parrot\_cx\_next\_task} at the point after executing the task at which it returns to \textit{Parrot\_cx\_outer\_runloop}.
+The control flow ends up back at \textit{Parrot\_cx\_next\_task} at the point after executing the task. \textit{Parrot\_cx\_next\_task} then returns to \textit{Parrot\_cx\_outer\_runloop}.
 
 The \textit{schedule} op code is used to schedule a new task from user code. It uses \textit{Parrot\_cx\_schedule\_task} which starts new worker threads if needed and possible and pushes the task on the target thread's scheduler's task queue. If the target thread previously was executing only a single task, its preemption has been disabled for optimization as described above. So in this case \textit{Parrot\_cx\_schedule\_task} has to enable preemption to give the new task a chance to run.
 
@@ -314,7 +315,7 @@ The Scheduler PMC contains the following attributes:
 %
 \begin{itemize}
 \item PMC *task\_queue: List of tasks/green threads waiting to run
-\item Parrot\_mutex task\_queue\_lock: a lock protecting the task\_queue so other threads might access it safely
+\item Parrot\_mutex task\_queue\_lock: a lock protecting the task\_queue so other threads can access it safely
 \item PMC *alarms: List of future alarms ordered by time
 \item PMC *all\_tasks: Hash of all active tasks by ID
 \item UINTVAL next\_task\_id: ID to assign to the next created task
@@ -343,7 +344,7 @@ The Task PMC contains the following attributes:
 \item PMC *partner: Copy of this task on the other side of a GC barrier, meaning in another thread
 \end{itemize}
 
-The \textit{invoke} method is used to run the task. It first checks the \textit{killed} flag to see if the task has been killed while waiting in the task queue. If it's still alive, the current recursion depth is saved to a local variable. This is a workaround needed because \textit{Parrot\_Sub\_invoke} which ends up being called when invoking the task's \textit{code} increments the recursion depth, but it does not get decremented anymore in case the task got preempted. This would lead to an ``recursion depth exceeded'' exception when many tasks are invoked during a program's runtime. The next steps are to add the task to the list of active tasks and to invoke the task's \textit{code}. \textit{data} is an optional parameter to the subroutine given as \textit{code}. Since this may be a compound object, a single parameter can cover all use cases.
+The \textit{invoke} method is used to run the task. It first checks the \textit{killed} flag to see if the task has been killed while waiting in the task queue. If it is still alive, the current recursion depth is saved to a local variable. This is a workaround needed because \textit{Parrot\_Sub\_invoke}, which ends up being called when invoking the task's \textit{code}, increments the recursion depth, but it does not get decremented anymore in case the task got preempted. This would lead to an ``recursion depth exceeded'' exception when many tasks are invoked during a program's runtime. The next steps are to add the task to the list of active tasks and to invoke the task's \textit{code}. \textit{data} is an optional parameter to the subroutine given as \textit{code}. Since this can be a compound object, a single parameter can cover all use cases.
 
 If the task has been killed while being in the task queue or while running or it just ended, it gets removed from the list of active tasks and all tasks registered with this task's \textit{waiters} array are added to the scheduler's task queue to be run.
 
@@ -353,9 +354,9 @@ The \textit{kill} method is used to set the task's \textit{killed} flag.
 
 \section{Runloops (1)}
 
-Runloops are created whenever a part of Parrot's C internals starts to execute bytecode. This could be simply at interpreter startup to start the actual program to execute or when some library function needs to execute a user callback. An exception handler could also be such a callback. Each runloop has a unique id. These ids are numbered from 0 and simply increased by 1 whenever a new runloop is created.
+Runloops are created whenever a part of Parrot's C internals starts to execute bytecode. This can be simply at interpreter startup to start the actual program to execute or when some library function needs to execute a user callback. An exception handler can also be such a callback. Each runloop has a unique id. These ids are numbered from 0 and simply increased by 1 whenever a new runloop is created.
 
-When an exception is thrown, Parrot searches for a previously set up exception handler and executes it. As part of exception handling finalization, it cleans up, freeing any information no longer needed. The exception handler does not necessarily have to have been set up in the same runloop which the exception has been thrown from. Parrot uses the runloop id to identifiy such situations and free the nested runloops up to the level of the exception handler.
+When an exception is thrown, Parrot searches for a previously set up exception handler and executes it. As part of exception handling finalization, it cleans up, freeing any information no longer needed. The exception handler does not necessarily have to have been set up in the same runloop from which the exception has been thrown. Parrot uses the runloop id to identifiy such situations and free the nested runloops up to the level of the exception handler.
 
 A continuation also contains the id of the runloop in which it has been created. When resuming a preempted task, this id would not be the same as the one of the runloop created for executing its code. This would lead to Parrot not finding the correct runloop when finalizing an exception.
 
@@ -370,32 +371,32 @@ Thus the scheduler checks for the current runloop id and does not preempt a task
 \subsection{Creation (1)}
 \label{subsec:thread_creation}
 
-Each thread is represented by an instance of the ParrotInterpreter PMC. These interpreters are kept in the \textit{threads\_array} defined in \textit{src/thread.c}. It's a simple C array instead of one of Parrot's dynamic arrays which are implemented as PMCs because though ParrotInterpreter is implemented as a PMC itself, it's not fully garbage collected because of the bootstrapping issues this would create.
+Each thread is represented by an instance of the ParrotInterpreter PMC. These interpreters are kept in the \textit{threads\_array} defined in \textit{src/thread.c}. It's a simple C array instead of one of Parrot's dynamic arrays implemented as PMCs because though ParrotInterpreter is implemented as a PMC itself, it is not fully garbage collected because of the bootstrapping issues this would create.
 
-\textit{src/thread.c} also contains thread management functions all prefixed by \textit{Parrot\_thread\_}. Threads are created when \textit{Parrot\_cx\_schedule\_task} determines that all existing threads are busy and new threads may yet be started. It uses \textit{Parrot\_thread\_create} which creates a new interpreter by cloning the current one but with a cleared out \textit{thread\_data} structure. It also creates the \textit{thread\_data->notifierfd} pipe used to notify threads of expired alerts.
+\textit{src/thread.c} also contains thread management functions all prefixed by \textit{Parrot\_thread\_}. Threads are created when \textit{Parrot\_cx\_schedule\_task} determines that all existing threads are busy and new threads can yet be started. It uses \textit{Parrot\_thread\_create} to create a new interpreter by cloning the current one and giving it a cleared out \textit{thread\_data} structure. It also creates the \textit{thread\_data->notifierfd} pipe used to notify threads of expired alerts.
 
-The task is then scheduled with the new interpreter's scheduler using \textit{Parrot\_thread\_schedule\_task}. This function uses \textit{Parrot\_thread\_create\_local\_task} to create a corresponding task on the new interpreter and then simply pushes it onto the scheduler. Since each interpreter has its own garbage collector, all objects used on the interpreter must origin from this GC's memory pools. That's why \textit{Parrot\_thread\_create\_local\_task} creates a new \textit{local\_task}. Proxies are created for the task's \textit{code} and \textit{data} attributes. The task object of the originating interpreter and the new \textit{local\_task} are linked using their \textit{partner} attributes which just contains a pointer to the other object. This is the point where for all variables in the original task's \textit{shared} array proxies are created an put into the \textit{shared} array of the \textit{local\_task}. \textit{Parrot\_thread\_create\_proxy} is used for this purpose.
+The task is then scheduled with the new interpreter's scheduler using \textit{Parrot\_thread\_schedule\_task}. This function uses \textit{Parrot\_thread\_create\_local\_task} to create a corresponding task on the new interpreter and then simply pushes it onto the scheduler. Since each interpreter has its own garbage collector, all objects used on the interpreter must origin from this GC's memory pools. That's why \textit{Parrot\_thread\_create\_local\_task} creates a new \textit{local\_task}. Proxies are created for the task's \textit{code} and \textit{data} attributes. The task object of the originating interpreter and the new \textit{local\_task} are linked using their \textit{partner} attributes containing a pointer to the other object. This is the point where for all variables in the original task's \textit{shared} array proxies are created an put into the \textit{shared} array of the \textit{local\_task}. \textit{Parrot\_thread\_create\_proxy} is used for this purpose.
 
 \textit{Parrot\_thread\_insert\_thread} is used to put the new interpreter into the \textit{threads\_array}.
 
 \textit{Parrot\_thread\_run} is the function where the actual operating system thread is created. It uses macros defined in the \textit{include/parrot/thr\_*.h} include files which act as an OS abstraction layer.
 
-\textit{Parrot\_thread\_outer\_runloop} is used as the thread's main function. It's very similiar to \textit{Parrot\_cx\_outer\_runloop}. The most important difference is the way it waits for pending alarms in case no tasks are to be run. While \textit{Parrot\_cx\_outer\_runloop} waits for an alarm signal to arrive, \textit{Parrot\_thread\_outer\_runloop} waits for a dummy to be written to its \textit{notifierfd} pipe by \textit{Parrot\_cx\_run\_scheduler}. In addition it's holding the \textit{interp->thread\_data->interp\_lock} lock while executing a task. This is the lock which \textit{Parrot\_cx\_schedule\_task} is taking during its call to \textit{Parrot\_thread\_schedule\_task} because the latter needs to create new objects local to the thread. As this could cause garbage collection to be triggered, the thread itself should not be executing code at the same time.
+\textit{Parrot\_thread\_outer\_runloop} is used as the thread's main function. It's very similiar to \textit{Parrot\_cx\_outer\_runloop}. The most important difference is the way it waits for pending alarms in case no tasks are to be run. While \textit{Parrot\_cx\_outer\_runloop} waits for an alarm signal to arrive, \textit{Parrot\_thread\_outer\_runloop} waits for a dummy to be written to its \textit{notifierfd} pipe by \textit{Parrot\_cx\_run\_scheduler}. In addition it is holding the \textit{interp->thread\_data->interp\_lock} lock while executing a task. This is the lock which \textit{Parrot\_cx\_schedule\_task} is taking during its call to \textit{Parrot\_thread\_schedule\_task} because the latter needs to create new objects local to the thread. As this could cause garbage collection to be triggered, the thread itself should not be executing code at the same time.
 
 \subsection{Proxies (2)}
 
-Proxies are the arbiters between threads. They are the only means for a thread to access another thread's data and are implemented by the \textit{Proxy} PMC type. This type has only to attributes, none of which are garbage collected:
+Proxies are the arbiters between threads. They are the only means for a thread to access another thread's data and are implemented by the \textit{Proxy} PMC type. This type has only two attributes, none of which are garbage collected:
 %
 \begin{itemize}
 \item PMC *target: The PMC this object proxies to
 \item Parrot\_Interp interp: The interpreter owning target
 \end{itemize}
 
-As described in section~\ref{sec:PMCs} PMC source files to get preprocessed before compilation by a C compiler. This preprocessing gets done by the \textit{tools/build/pmc2c.pl} Perl script. This script got extended by implementing the \textit{Parrot::Pmc2c::PMC::Proxy} module which creates default implementations for all vtable functions not otherwise defined in the \textit{proxy.pmc} file. The default implementation for all writing functions would just call \textit{cant\_do\_write\_method} which creates a runtime exception. All other methods call the vtable method of the same name on the \textit{target} passing \textit{interp} as the current interpreter and all other parameters unchanged. If the method returns a PMC, another proxy object is created and wrapped around it so it may be safely returned to the caller.
+As described in section~\ref{sec:PMCs} PMC source files to get preprocessed before compilation by a C compiler. This preprocessing gets done by the \textit{tools/build/pmc2c.pl} Perl script. This script got extended by implementing the \textit{Parrot::Pmc2c::PMC::Proxy} module which creates default implementations for all vtable functions not otherwise defined in the \textit{proxy.pmc} file. The default implementation for all writing functions would just call \textit{cant\_do\_write\_method} which creates a runtime exception. All other methods call the vtable method of the same name on the \textit{target} passing \textit{interp} as the current interpreter and all other parameters unchanged. If the method returns a PMC, another proxy object is created and wrapped around it so it can be safely returned to the caller.
 
 \subsection{Writing shared data (2)}
 
-As described in chapter~\ref{cha:design} to write to shared data, a thread creates a small task and schedules it on the data owning interpreter. An example task could look like this:
+As described in chapter~\ref{cha:design} to write to shared data, a thread creates a small task and schedules it on the data owning interpreter. An example task looks like this:
 %
 \begin{GenericCode}
 .sub write_to_variable
@@ -404,7 +405,7 @@ As described in chapter~\ref{cha:design} to write to shared data, a thread creat
 .end
 \end{GenericCode}
 %
-This is a subroutine with just one parameter. The variable passed in as this parameter is the one the task should write to. In this case the constant value 1 would be written to the variable. In PIR an assignment to a PMC gets translated as a method call. In this case the \textit{set\_integer\_native} would be called changing the variable's value. Since PMCs get passed by reference, it's the original variable which gets written to.
+This is a subroutine with just one parameter. The variable passed in as this parameter is the one the task should write to. In this case the constant value 1 would be written to the variable. In PIR an assignment to a PMC gets translated as a method call. In this case the \textit{set\_integer\_native} would be called changing the variable's value. Since PMCs get passed by reference, it is the original variable which gets written to.
 
 The code to create the task would look like:
 %
@@ -421,9 +422,9 @@ Line 1 simply creates a new Task object. The example subroutine is used for the 
 
 \subsection{Garbage Collection (3)}
 
-Since each interpreter has its own garbage collector and consequenty its own memory areas and may only access data directly which it owns, the garbage collector can simply act as if there were no other threads. Thus the main work has been to clean up the interpreter structure itself and to replace references to global data by proxies. Only a few special cases had to be built into the GC itself. The global variable PMCNULL is used in many places in the code, but should be handled only by the main thread's garbage collector.
+Since each interpreter has its own garbage collector and consequenty its own memory areas and can only access its own data directly, the garbage collector can simply act as if there were no other threads. Thus the main work has been to clean up the interpreter structure itself and to replace references to global data by proxies. Only a few special cases had to be built into the GC itself. The global variable PMCNULL is used in many places in the code, but should be handled only by the main thread's garbage collector.
 
-Before the implementation of threading support, having multiple interpreter objects in the system was used to implement things like a safe compartment in which a code could be run in a restricted environment. For such cases it was useful to share the garbage collector between interpreters. This special handling had to be removed.
+Before the implementation of threading support, having multiple interpreter objects in the system was used to implement things like a safe compartment where code can be run in a restricted environment. For such cases it was useful to share the garbage collector between interpreters. This special handling had to be removed.
 
 Only the main thread is allowed to load additional bytecode or create new classes since it owns the data structures used to manage these things. Child threads use these via proxies. In previous implementation attempts code segments, classes and vtables have been copied for each new interpreter making thread startup a very costly operation while still causing subtle problems.
 
