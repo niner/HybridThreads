@@ -384,6 +384,7 @@ Quellen entnommenen Stellen als solche gekennzeichnet habe.
 
 \renewcommand{\@batitelseiten}{
 \@batitel
+\@copyrightseite
 \@babetreuerseite
 \@erklaerungsseite
 }
