@@ -325,7 +325,6 @@ This work is published under the conditions of the
 
 \newcommand{\@babetreuerseite}{%
 \newpage
-\setcounter{page}{2}
 \thispagestyle{plain}
 \rule{0mm}{1mm}
 \begin{center}
@@ -453,9 +452,9 @@ Quellen entnommenen Stellen als solche gekennzeichnet habe.
 \ExecuteBibliographyOptions{sortcites=true,defernumbers=true,isbn=false,doi=false}
 
 %% 3 categories of references:
-\newcommand{\@bibtitleLiteratur}{Literatur}
+\newcommand{\@bibtitleLiteratur}{Literature}
 \newcommand{\@bibtitleAvmedia}{Filme und audiovisuelle Medien}
-\newcommand{\@bibtitleOnline}{Online-Quellen}	
+\newcommand{\@bibtitleOnline}{Online Sources}	
 
 \defbibfilter{literature}{
 	not ( type=movie or type=video or type=music or type=audio or 

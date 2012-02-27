@@ -1,7 +1,7 @@
 .PHONY: clean-temp
 all: Paper.pdf clean-temp
 
-Paper.pdf: Paper.tex literature.bib
+Paper.pdf: Paper.tex literature.bib perlexample.tex
 	latex --output-format=pdf Paper.tex
 	bibtex8 Paper.aux
 	latex --output-format=pdf Paper.tex
