@@ -292,7 +292,7 @@ In this scheme critical sections can simply be implemented by disabling preempti
 
 A garbage collector has to traverse and process the entire tree of objects in memory. If during this traversal another thread is changing this tree by creating new objects, moving them around in the tree or removing them, the garbage collector's data would be compromised. For example it could happen that the GC does not mark referenced objects alive because they were added to parents having already been processed.
 
-In previous attempts to implement threading support in Parrot, the answer to this problem was to disable the garbage collector while multiple threads are active. Other VMs solve this problem by suspending all threads while the GC is running. While multithreaded garbage collection algorithms exist, their implementation would have been to complex and brittle for this paper\cite{VCGC}.
+In previous attempts to implement threading support in Parrot, the answer to this problem was to disable the garbage collector while multiple threads are active. Other VMs solve this problem by suspending all threads while the GC is running. While multithreaded garbage collection algorithms exist, their implementation would have been too complex and brittle for this paper\cite{VCGC}.
 
 Since cross threaded writes are already forbidden and all read access to other thread's data goes through the very narrow channel of proxy objects, forcing a complete separation of the thread's memory domains was only a small step. By having separate memory areas for each interpreter, it became possible to have each interpreter to run its own garbage collector. This way, the known to work, single threaded GC implementation can be used nearly unchanged.
 
