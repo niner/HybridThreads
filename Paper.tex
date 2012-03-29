@@ -487,6 +487,45 @@ Scheduling tasks on other interpreters may cause garbage collection due to the n
 
 \chapter{Tests and Benchmarks (4)}
 
+In addition to Parrot's extensive test suite, tests were conducted using three test programs.
+
+\section{tasks.pir}
+
+tasks.pir is a simple test program, executing two \textit{Tasks} called ``a'' and ``b'' which run in tight loops printing their name on each 100000th iteration. The program ends after running for 10 seconds. This is a test of thread creation and task scheduling but does not access any shared data. The full code is as follows:
+%
+\begin{GenericCode}
+.sub main :main
+    .local pmc task, a, b, a_task, b_task
+    task = get_global 'task'
+    a = new ['String']
+    a = "a"
+    b = new ['String']
+    b = "b"
+    a_task = new ['Task']
+    setattribute a_task, 'code', task
+    setattribute a_task, 'data', a
+    b_task = new ['Task']
+    setattribute b_task, 'code', task
+    setattribute b_task, 'data', b
+    schedule a_task
+    schedule b_task
+    sleep 10
+    exit 0
+.end
+
+.sub task
+    .param pmc name
+    .local int i
+start:
+    print name
+    i = 0
+loop:
+    inc i
+    if i >= 100000 goto start
+    goto loop
+.end
+\end{GenericCode}
+
 \chapter{Conclusion, Further Work and Experiences (3)}
 
 \begin{itemize}
