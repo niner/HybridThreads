@@ -106,8 +106,6 @@ The CPython implementation of the Python runtime uses a Global Interpreter Lock 
 
 To actually run Python code in parallel, multiple processes have to be used. The \textit{multiprocessing} module provides support for spawning processes using an API similar to the threading module\cite{PythonMultiProcessingManual}. Since processes may not directly access other processes' memory, the \textit{multiprocessing} module provides several means of communication between processes: \textit{Queues}, \textit{Pipes} and shared memory support.
 
-\section{Erlang}
-
 \chapter{Parrot (4)}
 
 Parrot consists of the virtual machine (VM, also called interpreter), and various tools to facilitate the implementation of programming languages on top of the Parrot VM (the Parrot Compiler Toolkit). This paper concentrates on the virtual machine itself. The interpreter itself is written in C. Example code and test cases are written in PIR (Parrot Intermediate Representation) a high level assembly language abstracting away register allocations and function calling conventions.

@@ -352,10 +352,12 @@ im\\
 %\thispagestyle{empty}
 
 \noindent
-Hiermit erkläre ich an Eides statt, dass ich die vorliegende Arbeit
-selbst\-ständig und ohne fremde Hilfe verfasst, andere als die
-angegebenen Quellen und Hilfsmittel nicht benutzt und die aus anderen
-Quellen entnommenen Stellen als solche gekennzeichnet habe.
+I hereby declare and confirm that this thesis is entirely the result
+of my own original work. Where other sources of information have been
+used, they have been indicated as such and properly acknowledged. I
+further declare that this or similar work has not been submitted for
+credit elsewhere.
+
 
 \vspace{10mm}
 \noindent
