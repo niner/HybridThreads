@@ -110,7 +110,7 @@ To actually run Python code in parallel, multiple processes have to be used. The
 
 Parrot consists of the virtual machine (VM, also called interpreter), and various tools to facilitate the implementation of programming languages on top of the Parrot VM (the Parrot Compiler Toolkit). This paper concentrates on the virtual machine itself. The interpreter itself is written in C. Example code and test cases are written in PIR (Parrot Intermediate Representation) a high level assembly language abstracting away register allocations and function calling conventions.
 
-Contrary to other widely used virtual machines like the JVM or the CLR which are stack based, Parrot mirrors contemporary hardware CPUs more closely by being register based. A stack based virtual machine usually fetches the operands of an operation from the top of a stack and puts the result back on top. Thus the operands chosen implicitly by ordering of the operations allowing the opcodes to be quite small. In a register based VM on the other hand each operation has to specify the operands explicitly. Compilers for stack machines are simpler because they do not have to care about register allocations and code is independent of prior or subsequent code\cite{VMShowdown}. The rationale behind giving up the simplicity of a stack based implementation is the hope of simplifying just in time compilation and improved performance of nested function and method calls.
+Contrary to other widely used virtual machines like the JVM or the CLR which are stack based, Parrot mirrors contemporary hardware CPUs more closely by being register based. A stack based virtual machine usually fetches the operands of an operation from the top of a stack and puts the result back on top. Thus the operands are chosen implicitly by ordering of the operations allowing the opcodes to be quite small. In a register based VM on the other hand each operation has to specify the operands explicitly. Compilers for stack machines are simpler because they do not have to care about register allocations and code is independent of prior or subsequent code\cite{VMShowdown}. The rationale behind giving up the simplicity of a stack based implementation is the hope of simplifying just in time compilation and improved performance of nested function and method calls.
 
 The current design uses four sets of registers with each and unlimited number of usable registers. The four sets are:
 %
@@ -135,7 +135,7 @@ struct PMC {
     PMC            *_metadata;          /* Pointer to metadata PMC. */
 };
 \end{CCode}
-In short it contains a pointer to a type specific data structure and some meta data. The vtable is where the type's behavior is defined. It contains a long list of function pointers forming Parrot's unified type interface. This interface is a union of numeric, string, array, hash and object like behaviors. For example the  \textit{get\_integer} function returns an integer value for the data type. For a simple \textit{int} it is the contained value. For an array it may be the number of elements. The \textit{find\_method} function makes user defined methods of objects possible.
+In short they contain a pointer to a type specific data structure and some meta data. The vtable is where the type's behavior is defined. It contains a long list of function pointers forming Parrot's unified type interface. This interface is a union of numeric, string, array, hash and object like behaviors. For example the  \textit{get\_integer} function returns an integer value for the data type. For a simple \textit{int} it is the contained value. For an array it may be the number of elements. The \textit{find\_method} function makes user defined methods of objects possible.
 
 In this way, a language implementer can define the basic types of the language and available operations on them. For each vtable entry, there is a corresponding op code in Parrot's bytecode. Thus an \textit{inc \$P0} instruction is calling the \textit{increment} vtable function of the PMC contained in the \textit{\$P0} register.
 
@@ -147,14 +147,14 @@ The interpreter itself is represented by a C struct called \textit{parrot\_inter
 
 \section{Continuation passing}
 
-Control flow is modeled in Parrot using continuation passing. A continuation is a data structure containing the state of a program at a given point in its execution. It contains all information needed to continue a program in a certain state, e.g. a call stack, the instruction pointer and contents of local variables. ``Calling'' a continuation means restoring the state encapsulated in the continuation.
+Control flow in Parrot is modeled using continuation passing. A continuation is a data structure containing the state of a program at a given point in its execution. It contains all information needed to continue a program in a certain state, e.g. a call stack, the instruction pointer and contents of local variables. ``Calling'' a continuation means restoring the state encapsulated in the continuation.
 
 When a function is called, instead of pushing all this information on the stack, the function is given a return continuation as part of its parameters. Returning from a function means calling the return continuation with possible return values stored in the registers where the calling code is expecting them. Continuation passing makes things like tail call optimization \footnote{When as the last statement of a function another function is called and its value returned unchanged, the outer function can just pass on its return continuation thus saving the need to create a new continuation and one step on returning from the nested function} very simple and as described in chapter~\ref{cha:green_threads} is a very important piece in implementing green threads.
 
 \section{Runloops}
 \label{sec:Runloops}
 
-A runloop is in principle the most inner loop executing bytecode in Parrot. It is also a data structure containing some information needed to support exception handling. When some operation in Parrot bytecode is calling a C function and this C function in turn is again executing Parrot bytecode, a nested runloop is started. Examples for such situations include calling a library function with a callback as parameter and exceptions thrown inside Parrot's C code calling a previously defined exception handler in user code.
+A runloop is in principle the inner most loop executing bytecode in Parrot. It is also a data structure containing some information needed to support exception handling. When some operation in Parrot bytecode is calling a C function and this C function in turn is again executing Parrot bytecode, a nested runloop is started. Examples for such situations include calling a library function with a callback as parameter and exceptions thrown inside Parrot's C code calling a previously defined exception handler in user code.
 
 \section{Exception handling}
 
@@ -327,7 +327,7 @@ The \textit{schedule} op code is used to schedule a new task from user code. It 
 
 Alarms can be registered using \textit{Parrot\_cx\_schedule\_alarm}. It puts the alarm in the appropriate place in the ordered alarm list and uses \textit{Parrot\_alarm\_set} which sets the actual alarm but only if there's not another alarm already set for an earlier time since there can only be one POSIX alarm pending at any time.
 
-\textit{Parrot\_cx\_schedule\_sleep} is the actual implementation of the \textit{sleep} op. Like in\textit{Parrot\_cx\_preempt\_task}, \textit{Parrot\_cx\_stop\_task} is used to get an updated task at the current execution position, but instead of pushing this on the run queue, it is used as a callback for a newly set alarm. Again the NULL opcode is used to stop processing of the current task.
+\textit{Parrot\_cx\_schedule\_sleep} is the actual implementation of the \textit{sleep} op. Like in \textit{Parrot\_cx\_preempt\_task}, \textit{Parrot\_cx\_stop\_task} is used to get an updated task at the current execution position, but instead of pushing this on the run queue, it is used as a callback for a newly set alarm. Again the NULL opcode is used to stop processing of the current task.
 
 \section{Scheduler PMC (1)}
 
