@@ -531,7 +531,9 @@ loop:
 
 \section{moretasks.pir}
 
-moretasks.pir is an extended test where the main task creates 50000 child tasks. These tasks would poll a shared variable with pauses of 100ms. When the variable is set to 1, they schedule tasks on the main thread to write their number to a results array. When the results array contains the expected number of results the process is repeated. This test stresses reading and writing to shared data, allocation and garbage collection. This test proved to be valuable for finding all sorts of concurrency issues. The complete source code is available in appendix \ref{app:moretasks}.
+moretasks.pir is an extended test where the main task creates 50000 child tasks. These tasks would poll a shared variable with pauses of 100ms. When the variable is set to 1, they schedule tasks on the main thread to write their number to a results array. When the results array contains the expected number of results the process is repeated.
+
+This test stresses reading and writing to shared data, allocation and garbage collection. It proved to be valuable for finding all sorts of concurrency issues. The complete source code is available in appendix \ref{app:moretasks}.
 
 \section{matrix\_part.winxed}
 
