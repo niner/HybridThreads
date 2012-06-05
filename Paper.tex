@@ -38,8 +38,17 @@ Markus "zimmski" Zimmerman for correcting many errors.
 
 \chapter{Abstract (1)}
 
+Parrot is a runtime for dynamically typed programming languages. Despite several attempts in it's 10 years of history, it does provide any support for multithreaded computation.
+
+This paper shows a way to implement threading support in the runtime using a hybrid between lightweight (``green'') threads and operating system threads. These lightweight threads are used as messages in a system where reading shared data is allowed but only the one owner thread may write to it. The implementation is described in detail and benchmarks presented demonstrating the viability of this design.
+
 \begin{german}
 \chapter{Kurzfassung (1)}
+
+Parrot ist eine Laufzeitumgebung f{\"u}r dynamisch typisierte Programmiersprachen. Trotz mehrerer Anl{\"a}ufe in seiner zehnj{\"a}hrigen Geschichte, bietet es keine Unterst{\"u}tzung f{\"u}r Multithreading.
+
+Diese Arbeit zeigt einen Weg um Threadingunterst{\"u}tzung in der Laufzeitumgebung zu implementieren mit Hilfe eines hybriden Systems aus leichtgewichtigen und Betriebssystem- Threads. Diese leichtgewichtigen Threads werden als Nachrichten in einem System benutzt, in dem das Lesen von gemeinsamen Daten erlaubt ist, aber nur der eine besitzende Thread darauf schreiben darf. Die Implementierung wird detailiert beschrieben und mit Benchmarks die Brauchbarkeit des Designs gezeigt.
+
 \end{german}
 
 \mainmatter
