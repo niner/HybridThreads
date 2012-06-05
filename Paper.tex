@@ -543,15 +543,25 @@ Chameneos is a game useful for testing peer-to-peer cooperation of threads prese
 
 \chapter{Conclusion, Further Work and Experiences (3)}
 
-\begin{itemize}
-\item Windows implementation for timer/alarm handling
-\item Replace thread\_data->interp\_lock usage by preallocated proxy objects
-\item Allow threads to create threads
-\item Allow multi level proxying (don't create a proxy for a proxy, unpack first)
-\item Allow redistribution of tasks to other threads
-\end{itemize}
+This work shows a way to successfully implement threading support in a dynamic language runtime after the fact. Changes to the interpreter itself could be kept at a reasonable level and very local to the threading implementation itself. Benchmarks have shown that no slowdowns were measurable in the still very important single threaded case, while the implementation scales well using multiple threads.
 
-There are several places with an implicit assumption that new threads may be only started from the main thread. Similarly only the main thread may schedule tasks on other threads. Sub threads may schedule tasks only on the main thread, not on other sub threads. These restrictions are not inherent in the implemented threading model but were introduced due to time constraints.
+\section{Further work}
+
+\subsection{Remove locking from the GC}
+
+The initial goal of an almost lock free implementation has not been met fully. The garbage collector has to take a lock in most of it's functions. Though these locks are used only when more than one interpreter thread is running, they still represent an overhead which could be avoided. A way to accomplish this would be to pre-allocate proxy objects instead of allocating them on demand. The allocation could be done as part of a thread's outer runloop. This would eliminate the need for the locks in the garbage collector. The number of proxy objects to pre-allocate would be an important knob for optimization, since too few objects would lead to starvation quickly when many tasks are scheduled.
+
+\subsection{Allow threads to create threads}
+
+In the current implementation there are several places with an implicit assumption that new threads may be only started from the main thread. Similarly only the main thread may schedule tasks on other threads. Sub threads may schedule tasks only on the main thread, not on other sub threads. These restrictions are not inherent in the implemented threading model but were introduced due to time constraints.
+
+\subsection{Allow multi level proxying}
+
+Communication between sub threads is currently restricted by the fact that proxy objects can only be transfered back to the thread which created them. To remove this restriction, \textit{Parrot\_thread\_create\_proxy} has to be extended to detect an attempted transfer of a proxy to a different thread and unwrap it first before creating a new proxy.
+
+\subsection{Allow redistribution of tasks to other threads}
+
+\subsection{Dynamic maximum number of threads}
 
 \appendix
 \chapter{moretasks.pir}
