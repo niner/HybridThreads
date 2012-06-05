@@ -386,6 +386,10 @@ If Parrot were to preempt a task while it is executing a nested runloop, it woul
 
 Thus the scheduler checks for the current runloop id and does not preempt a task if it is currently running a nested runloop. Furthermore even a manual yield to another task is not possible in such a situation. The only way to solve this problem would be to get rid of nested runloops in the interpreter.
 
+\section{Alarms and Timers}
+
+Timers used for \textit{sleep}, alarms and preemption use a common timer thread implemented in \textit{src/alarm.c}. This thread sleeps until a new alarm is set or the currently active one expires. When the latter happens it increases the global alarm serial and notifies all threads that a timer is expired. Since it does not keep a list of pending alarms but knows only about the next one, interpreter threads are obliged to re-set their next alarms upon notification.
+
 \section{Threads (8)}
 
 \subsection{Creation (1)}
