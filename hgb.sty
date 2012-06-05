@@ -4,7 +4,7 @@
 %% Bachelor- und Diplomarbeiten.
 
 \NeedsTeXFormat{LaTeX2e}
-\newcommand{\hgbDate}{2011/06/26}	%Versionsdatum
+\newcommand{\hgbDate}{2012/05/10}	%Versionsdatum
 \ProvidesPackage{hgb}[\hgbDate]
 
 % options german/english are passed from the class file
@@ -55,6 +55,7 @@
 
 \RequirePackage{ifthen}
 \RequirePackage[english,german,ngerman]{babel}
+\RequirePackage{datetime}
 
 \RequirePackage{eurosym} % provides \euro - conflict with marvosym on \EUR!
 %\RequirePackage{marvosym} % provides \EUR and other unusual symbols!
@@ -460,10 +461,8 @@ keepspaces=true,%
 
 \RequirePackage{hyperref}		% ignores \pdfinfo commmands
 \RequirePackage[all]{hypcap} % fixes hyperref problem with references to float captions
-\RequirePackage[novbox]{pdfsync} % notwendig für inverse Suche aus dem PDF viewer
-% novbox Option verhindert Konflikt u.a. mit array-Package
-
-%\RequirePackage[noadjust]{cite} % vermeidet zusätzliches Spacing vor [..] % removed for biblatex
+%\RequirePackage[novbox]{pdfsync} % ersetzt durch -synctex=-1 option
+%\RequirePackage[noadjust]{cite} % vermeidet zusätzliches Spacing vor [..] % entfernt wegen biblatex
 
 \RequirePackage{ifpdf}
 \ifpdf % LaTeX is in native PDF mode (pdflatex) 

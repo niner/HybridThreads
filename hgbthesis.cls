@@ -4,7 +4,7 @@
 %% Bachelor- und Diplomarbeiten.
 
 \NeedsTeXFormat{LaTeX2e}
-\newcommand{\hgbthesisDate}{2011/06/26} %Versionsdatum
+\newcommand{\hgbthesisDate}{2012/05/10} %Versionsdatum
 \ProvidesClass{hgbthesis}[\hgbthesisDate\space LaTeX-Vorlage fuer Diplomarbeiten, Masterabeiten, Bachelorarbeiten etc.]
 
 \RequirePackage{ifthen}
@@ -14,7 +14,7 @@
 \newcommand{\@datitelseiten}{}
 \newcommand{\@batitelseiten}{}
 \newcommand{\@prtitelseiten}{}
-\newcommand{\@maketitlepages}{\@datitelseiten}  %default: Diplomarbeit
+\newcommand{\@maketitlepages}{\@matitelseiten}  %default: Masterarbeit
 
 
 %% begin class options ---------------------------------------------
@@ -72,21 +72,33 @@
 	\renewcommand{\@semester}{#1}
 }
 
-\newcommand{\@abgabemonat}{\@MissingArg{Monat??}}
-\newcommand{\damonat}[1]{%
-	\renewcommand{\@abgabemonat}{#1}
-}
-\newcommand{\abgabemonat}[1]{%
-	\renewcommand{\@abgabemonat}{#1}
+%% -------------------------------------------------
+
+\newcounter{@abgabetag}
+\newcounter{@abgabemonat}
+\newcounter{@abgabejahr}
+
+\setcounter{@abgabetag}{\the\day}
+\setcounter{@abgabemonat}{\the\month}
+\setcounter{@abgabejahr}{\the\year}
+
+\newcommand{\abgabedatum}[3]{%	%\abgabedatum{yyyy}{mm}{dd}
+	\setcounter{@abgabejahr}{#1}
+	\setcounter{@abgabemonat}{#2}
+	\setcounter{@abgabetag}{#3}
 }
 
-\newcommand{\@abgabejahr}{\@MissingArg{Jahr??}}
-\newcommand{\dajahr}[1]{%
-\renewcommand{\@abgabejahr}{#1}
+\newcommand{\abgabemonat}[1]{%
+	\ClassWarning{hgbthesis}{\noexpand\abgabemonat is deprecated - 
+	use \noexpand\abgabedatum instead!}
 }
+
 \newcommand{\abgabejahr}[1]{%
-\renewcommand{\@abgabejahr}{#1}
+	\ClassWarning{hgbthesis}{\noexpand\abgabejahr is deprecated - 
+	use \noexpand\abgabedatum instead!}
 }
+
+%% ----------------------------------------------------------
 
 \newcommand{\@firma}{\@MissingArg{Firma??}}
 \newcommand{\firma}[1]{%
@@ -143,7 +155,7 @@
     \vskip 4mm%
     {\large in \@studienort}%
     \vskip 16mm%
-    {\large im \@abgabemonat\ \@abgabejahr}%
+    {\large im \monthname[\value{@abgabemonat}] \arabic{@abgabejahr}}%
 \end{center}\par
   \vfil\null
 \end{titlepage}%
@@ -151,6 +163,7 @@
 
 \newcommand{\@matitel}{%
 \begin{titlepage}%
+\begin{german}
 \rule{0mm}{1mm}
 \vspace*{20mm}
 %\noindent Left side \hfill right side\\
@@ -173,9 +186,11 @@
     \vskip 4mm%
     {\large in \@studienort}%
     \vskip 16mm%
-    {\large im \@abgabemonat\ \@abgabejahr}%
+    {\large im \monthname[\value{@abgabemonat}] \arabic{@abgabejahr}}%
+%   {\large im \@abgabemonat\ \@abgabejahr}%
 \end{center}\par
   \vfil\null
+\end{german}
 \end{titlepage}%
 }
 
@@ -203,7 +218,7 @@
     \vskip 4mm%
     {\large in \@studienort}%
     \vskip 16mm%
-    {\large im \@abgabemonat\ \@abgabejahr}%
+    {\large im \monthname[\value{@abgabemonat}] \arabic{@abgabejahr}}%
 \end{center}\par
   \vfil\null
 \end{titlepage}%
@@ -235,7 +250,7 @@
     \vskip 4mm%
     {\large in \@studienort}%
     \vskip 16mm%
-    {\large im \@abgabemonat\ \@abgabejahr}%
+    {\large im \monthname[\value{@abgabemonat}] \arabic{@abgabejahr}}%
 \end{center}\par
   \vfil\null
 \end{titlepage}%
@@ -287,7 +302,7 @@ This work is published under the conditions of the
 \rule{0mm}{1mm}
 \vspace*{75mm}
 \begin{center}
-\copyright\ Copyright\ \@abgabejahr\ \@author
+\copyright\ Copyright\ \arabic{@abgabejahr}\ \@author
 \end{center}
 \vspace{8mm}
 \@makelicense
@@ -346,28 +361,73 @@ im\\
 \end{center}
 }
 
-\newcommand{\@erklaerungsseite}{%
+%% -------------- Erklärung / Declaration ---------
+
+\newcommand{\@erklaerungsseiteDe}{%
 \begin{german}
 \chapter{Erklärung}
-%\thispagestyle{empty}
-
 \noindent
-I hereby declare and confirm that this thesis is entirely the result
-of my own original work. Where other sources of information have been
-used, they have been indicated as such and properly acknowledged. I
-further declare that this or similar work has not been submitted for
-credit elsewhere.
-
-
+%Standardfassung der FH-OÖ ab 04.04.2012:
+Ich erkläre eidesstattlich, dass ich die vorliegende Arbeit selbstständig und ohne fremde Hilfe verfasst, 
+andere als die angegebenen Quellen nicht benutzt und die den benutzten Quellen entnommenen Stellen als 
+solche gekennzeichnet habe. Die Arbeit wurde bisher in gleicher oder ähnlicher Form keiner anderen 
+Prüfungsbehörde vorgelegt.
+\par
 \vspace{10mm}
 \noindent
-\@studienort, am \today
-
+\@studienort, am \formatdate{\value{@abgabetag}}{\value{@abgabemonat}}{\value{@abgabejahr}}
+\par
 \vspace{12mm}
 \noindent
 \@author
 \end{german}
 }
+
+\newcommand{\leadingzero}[1]{\ifnum #1<10 0\the#1\else\the#1\fi}
+
+\newcommand{\@erklaerungsseiteEn}{%
+\begin{english}
+\chapter{Declaration}
+\noindent
+I hereby declare and confirm that this thesis is entirely the result of my own original work. 
+Where other sources of information have been used, they have been indicated as such and properly 
+acknowledged. I further declare that this or similar work has not been submitted for credit elsewhere.
+\par
+\vspace{10mm}
+\noindent
+%\@studienort, \the\year-\leadingzero{\month}-\leadingzero{\day} %http://de.wikibooks.org/wiki/LaTeX-W%F6rterbuch:_today 
+\@studienort, {\usdate\formatdate{\value{@abgabetag}}{\value{@abgabemonat}}{\value{@abgabejahr}}}
+\par
+\vspace{12mm}
+\noindent
+\@author
+\end{english}
+}
+
+\newcommand{\@erklaerungsseite}{%
+\ifthenelse{\equal{\hgb@MainLanguage}{german}}%
+	{\@erklaerungsseiteDe}%
+	{\@erklaerungsseiteEn}
+}
+
+%\newcommand{\@erklaerungsseite}{%
+%\begin{german}
+%\chapter[Erklärung]{~}
+%\section*{Erklärung}
+%
+%\noindent
+%Ich erkläre eidesstattlich, dass ich die vorliegende Arbeit selbstständig und ohne fremde Hilfe verfasst, andere als die angegebenen Quellen nicht benutzt und die den benutzten Quellen entnommenen Stellen als solche gekennzeichnet habe. Die Arbeit wurde bisher in gleicher oder ähnlicher Form keiner anderen Prüfungsbehörde vorgelegt.
+%
+%\vspace{10mm}
+%\noindent
+%\@studienort, am \today
+%
+%\vspace{12mm}
+%\noindent
+%\@author
+%\end{german}
+%}
+
 
 %------------ Struktur der Frontseiten -------------------
 
