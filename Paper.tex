@@ -24,7 +24,7 @@
 \maketitle
 \tableofcontents
 
-\chapter{Thanks (1)}
+\chapter{Thanks}
 
 Andrew "whiteknight" Whitworth for laying the foundations for my work, being of tremendous help at all stages of the project and for fixing some of my bugs.
 
@@ -36,14 +36,14 @@ Brian "benabik" Gernhardt for lurking in the IRC channel and at least trying to 
 
 Markus "zimmski" Zimmerman for correcting many errors.
 
-\chapter{Abstract (1)}
+\chapter{Abstract}
 
 Parrot is a runtime for dynamically typed programming languages. Despite several attempts in it's 10 years of history, it does provide any support for multithreaded computation.
 
 This paper shows a way to implement threading support in the runtime using a hybrid between lightweight (``green'') threads and operating system threads. These lightweight threads are used as messages in a system where reading shared data is allowed but only the one owner thread may write to it. The implementation is described in detail and benchmarks presented demonstrating the viability of this design.
 
 \begin{german}
-\chapter{Kurzfassung (1)}
+\chapter{Kurzfassung}
 
 Parrot ist eine Laufzeitumgebung f{\"u}r dynamisch typisierte Programmiersprachen. Trotz mehrerer Anl{\"a}ufe in seiner zehnj{\"a}hrigen Geschichte, bietet es keine Unterst{\"u}tzung f{\"u}r Multithreading.
 
@@ -53,7 +53,7 @@ Diese Arbeit zeigt einen Weg um Threadingunterst{\"u}tzung in der Laufzeitumgebu
 
 \mainmatter
 
-\chapter{Introduction and Motivation (3)}
+\chapter{Introduction and Motivation}
 
 \begin{wrapfigure}{r}{0.5\textwidth}
 A simple example of Perl:
@@ -97,7 +97,7 @@ Before the work on this paper, Parrot did not have any threading support at all.
 
 This paper suggests a new approach based on a hybrid threading system. So called green threads are used to simplify the implementation of a nearly lock free multithreading implementation. This approach is based on a design by Andrew Whitworth and Nat Tuck. The goal of this paper is to demonstrate the advantages of this model and produce a working implementation which can be used to investigate the performance characteristics of a hybrid threading system.
 
-\chapter{Concurrency in other Programming Platforms (5)}
+\chapter{Concurrency in other Programming Platforms}
 
 This chapter is talking about programming platforms. A platform is seen as a combination of a programming language and a runtime. For example for the Python programming language there are multiple runtimes with different implementations of threading support.
 
@@ -115,7 +115,7 @@ The CPython implementation of the Python runtime uses a Global Interpreter Lock 
 
 To actually run Python code in parallel, multiple processes have to be used. The \textit{multiprocessing} module provides support for spawning processes using an API similar to the threading module\cite{PythonMultiProcessingManual}. Since processes may not directly access other processes' memory, the \textit{multiprocessing} module provides several means of communication between processes: \textit{Queues}, \textit{Pipes} and shared memory support.
 
-\chapter{Parrot (4)}
+\chapter{Parrot}
 
 Parrot consists of the virtual machine (VM, also called interpreter), and various tools to facilitate the implementation of programming languages on top of the Parrot VM (the Parrot Compiler Toolkit). This paper concentrates on the virtual machine itself. The interpreter itself is written in C. Example code and test cases are written in PIR (Parrot Intermediate Representation) a high level assembly language abstracting away register allocations and function calling conventions.
 
@@ -184,13 +184,13 @@ A mark and sweep garbage collector operates in two phases. In the mark phase, st
 
 In a process with many objects, having to traverse the whole tree may take a considerable amount of time. To mitigate this, a generational garbage collector extends this algorithm by assuming that the longer an object has lived, the lower the chances are that it will become unused. So the objects are partitioned into different generations. The youngest generation would always be traversed while the older generations would be handled much less frequently or even never more at all.
 
-\section{Historical development (1)}
+\section{Historical development}
 
 The remainder of the previous threading implementation has been removed with the merging of the kill\_threads branch on September, 21st 2011. Previously much threading related code has been removed to clean up the code and improve performance. Since the existing threading support was known to be unreliable and seriously flawed, this was no trade off.
 
 A year before, Nat Tuck began working on a green\_threads branch during his Google Summer of Code internship. The feature got prototyped using pure PIR and then implemented in Parrot's core. He got it to work in simple cases and started to work on operating system thread support but the internship ended before the code was ready to be merged into the master branch. The code lay dormant until the work on this paper started about a year later.
 
-\chapter{Green threads (3)}
+\chapter{Green threads}
 \label{cha:green_threads}
 
 Green threads are one way to model concurrent control flows in a program. To get a better understanding of what they are and how they work, the possible options are discussed first.
@@ -265,7 +265,7 @@ In Parrot green threads are called \textit{Task}. Each task is assigned a fixed 
 
 The scheduler is implemented as a PMC (Parrot's polymorphic container) type. The plan is to allow the user to subclass this PMC thus allowing very fine grained control over the scheduling policy. Features a user could add this way would be for example giving different priorities to tasks or implementing the possibility to suspend and resume a task.
 
-\chapter{Design of Hybrid Threads (3)}
+\chapter{Design of Hybrid Threads}
 \label{cha:design}
 
 This chapter describes how green threads were used to solve the following problems occurring when trying to implement threading support:
@@ -306,9 +306,9 @@ Since cross threaded writes are already forbidden and all read access to other t
 
 With separated memory domains it can happen that an object is created on one thread, used on another thread but not any more on the owner thread. Without any additional measures, the GC would collect such objects, since it does not know about references from other threads. But since all objects which could be accessed from other threads have to be pushed onto the Task object representing these threads, the objects can still be referenced from the Task object. Since the task is still owned by the original thread, the GC knows that these objects are still in use.
 
-\chapter{Implementation of Hybrid Threads (13)}
+\chapter{Implementation of Hybrid Threads}
 
-\section{The Scheduler (3)}
+\section{The Scheduler}
 
 The scheduler is the place where most of the green thread logic is implemented. It consists of two parts: functions using the prefix \textit{Parrot\_cx} which are located in \textit{src/scheduler.c} and the Scheduler PMC type containing the scheduler's data and public interface.
 
@@ -338,7 +338,7 @@ Alarms can be registered using \textit{Parrot\_cx\_schedule\_alarm}. It puts the
 
 \textit{Parrot\_cx\_schedule\_sleep} is the actual implementation of the \textit{sleep} op. Like in \textit{Parrot\_cx\_preempt\_task}, \textit{Parrot\_cx\_stop\_task} is used to get an updated task at the current execution position, but instead of pushing this on the run queue, it is used as a callback for a newly set alarm. Again the NULL opcode is used to stop processing of the current task.
 
-\section{Scheduler PMC (1)}
+\section{Scheduler PMC}
 
 The Scheduler PMC contains the following attributes:
 %
@@ -381,7 +381,7 @@ If the task has been killed while being in the task queue or while running or it
 
 The \textit{kill} method is used to set the task's \textit{killed} flag.
 
-\section{Runloops (1)}
+\section{Runloops}
 
 Runloops are created whenever a part of Parrot's C internals starts to execute bytecode. This can be simply at interpreter startup to start the actual program to execute or when some library function needs to execute a user callback. An exception handler can also be such a callback. Each runloop has a unique id. These ids are numbered from 0 and simply increased by 1 whenever a new runloop is created.
 
@@ -399,9 +399,9 @@ Thus the scheduler checks for the current runloop id and does not preempt a task
 
 Timers used for \textit{sleep}, alarms and preemption use a common timer thread implemented in \textit{src/alarm.c}. This thread sleeps until a new alarm is set or the currently active one expires. When the latter happens it increases the global alarm serial and notifies all threads that a timer is expired. Since it does not keep a list of pending alarms but knows only about the next one, interpreter threads are obliged to re-set their next alarms upon notification.
 
-\section{Threads (8)}
+\section{Threads}
 
-\subsection{Creation (1)}
+\subsection{Creation}
 \label{subsec:thread_creation}
 
 Each thread is represented by an instance of the ParrotInterpreter PMC. These interpreters are kept in the \textit{threads\_array} defined in \textit{src/thread.c}. It's a simple C array instead of one of Parrot's dynamic arrays implemented as PMCs because though ParrotInterpreter is implemented as a PMC itself, it is not fully garbage collected because of the bootstrapping issues this would create.
@@ -416,7 +416,7 @@ The task is then scheduled with the new interpreter's scheduler using \textit{Pa
 
 \textit{Parrot\_thread\_outer\_runloop} is used as the thread's main function. It's very similar to \textit{Parrot\_cx\_outer\_runloop}. The most important difference is the way it waits for pending alarms in case no tasks are to be run. While \textit{Parrot\_cx\_outer\_runloop} waits for an alarm signal to arrive, \textit{Parrot\_thread\_outer\_runloop} waits for a dummy to be written to its \textit{notifierfd} pipe by \textit{Parrot\_cx\_run\_scheduler}.
 
-\subsection{Proxies (2)}
+\subsection{Proxies}
 
 Proxies are the arbiters between threads. They are the only means for a thread to access another thread's data and are implemented by the \textit{Proxy} PMC type. This type has only two attributes, none of which are garbage collected:
 %
@@ -439,7 +439,7 @@ The \textit{Sub} PMC represents executable subroutines. A \textit{Sub} does not 
 
 This is the reason why \textit{Parrot\_thread\_create\_proxy} does not create a \textit{Proxy} for a \textit{Sub} but uses \textit{Parrot\_thread\_create\_local\_sub} to create a copy on the thread's \textit{interp} with proxies for all PMC attributes like \textit{namespace\_stash} and \textit{ctx}.
 
-\subsection{Writing shared data (2)}
+\subsection{Writing shared data}
 
 As described in chapter~\ref{cha:design} to write to shared data, a thread creates a small task and schedules it on the data owning interpreter. An example task looks like this:
 %
@@ -485,7 +485,7 @@ Using \textit{Tasks} to write to write to shared data makes such actions inheren
 
 If a task on the main thread was waiting for a task on another thread to finish and no other tasks are in the scheduler's queue on the main thread, the main thread would exit if no alarms are pending. To prevent this unintended exit all tasks are added to the scheduler's \textit{foreign\_tasks} list when they are scheduled on other threads. To end the program with other threads still running an explicit \textit{exit} op has to be issued.
 
-\subsection{Garbage Collection (3)}
+\subsection{Garbage Collection}
 
 Since each interpreter has its own garbage collector and consequently its own memory areas and can only access its own data directly, the garbage collector can simply act as if there were no other threads. Thus the main work has been to clean up the interpreter structure itself and to replace references to global data by proxies. Only a few special cases had to be built into the GC itself. The global variable PMCNULL is used in many places in the code, but should be handled only by the main thread's garbage collector.
 
@@ -497,7 +497,7 @@ Code segments and vtables are only marked by the main thread's garbage collector
 
 Scheduling tasks on other interpreters may cause garbage collection due to the need of creating proxy objects. To protect the garbage collector from concurrency issues, garbage collection is disabled during creation of the new \textit{Task} object and the proxies on the target thread's \textit{interp}. But since the target thread may itself be allocating memory or collecting garbage, the GC has to be protected by a lock as well. The \textit{interp->thread\_data->interp\_lock} lock is used for this. It is checked by all allocation and freeing functions which are also the only places where a garbage collection run may be triggered. Note that despite the GC being protected from concurrent access, this alone would still not be enough to share a GC between different threads since these threads could be changing references to objects while the GC does its marking and sweeping. When only creating new proxies (which contain no references visible to the GC), accessing a foreign GC is safe on the other hand.
 
-\chapter{Tests and Benchmarks (4)}
+\chapter{Tests and Benchmarks}
 
 In addition to Parrot's extensive test suite, tests were conducted using three test programs.
 
@@ -600,7 +600,7 @@ speedup & 1       &  1      &  1.959  &  3.739  &  5.116  \\
 
 As can be seen in the results, the implementation scales nearly linearly up to 4 threads reflecting the CPUs 4 physical cores. Using 8 threads the speedup is only 1.368 compared to 4 threads but this seems to be more a limitation of the hardware than the implementation.
 
-\chapter{Conclusion, Further Work and Experiences (3)}
+\chapter{Conclusion, Further Work and Experiences}
 
 This work shows a way to successfully implement threading support in a dynamic language runtime after the fact. Changes to the interpreter itself could be kept at a reasonable level and very local to the threading implementation itself. Benchmarks have shown that no slowdowns were measurable in the still very important single threaded case, while the implementation scales well using multiple threads.
 
@@ -722,7 +722,7 @@ run:
 
 \lstinputlisting{/home/nine/install/parrot/examples/threads/chameneos.pir}
 
-\MakeBibliography{References, Literature (1)}
+\MakeBibliography{References, Literature}
 
 \include{messbox}
 \end{document}
