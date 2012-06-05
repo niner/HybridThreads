@@ -548,9 +548,57 @@ This test stresses reading and writing to shared data, allocation and garbage co
 
 This test implements multiplication of a matrix by a vector using four threads. It is written in the \textit{Winxed} programming language. Winxed is a low level language with JavaScript like syntax and the possibility to include sections of PIR code verbatim making it possible to try experimental opcodes while writing more readable and concise code than with PIR alone. The complete source code is available in appendix \ref{app:matrix_part}.
 
+The program consists of the parts initialization, computation and verification. Computation is parallelized using 4 tasks each calculating one fourth of the result vector. Runtime is compared to a simple single threaded implementation. Run times were measured using the \textit{time} command and are recorded in table \ref{benchmark:matrix}
+
+\begin{table}
+\caption{Runtime comparison for matrix multiplication}
+\label{benchmark:matrix}
+\begin{tabular}{|l||c|c||c|c|} \hline
+& \emph{singlethreaded} & \emph{computation} & \emph{multithreaded} & \emph{computation} \\
+\hline
+1. run  & 28.522s & 19.530s & 17.543s & 8.478s \\
+\hline
+2. run  & 28.427s & 19.463s & 17.320s & 8.283s \\
+\hline
+3. run  & 28.200s & 19.235s & 17.489s & 8.473s \\
+\hline
+average & 28.383s & 19.409s & 17.451s & 8.411s \\
+\hline
+\end{tabular}
+\end{table}
+
+As can be seen the multi threaded implementation gives an average speedup of 2.31 for the computation and 1.61 in total.
+
 \section{chameneos.pir}
 
-Chameneos is a game useful for testing peer-to-peer cooperation of threads presented in \cite{Chameneos}. The complete source code is available in appendix \ref{app:chameneos_part}.
+Chameneos is a game useful for testing peer-to-peer cooperation of threads presented in \cite{Chameneos}. It revolves around fictional creatures, each being of one of three colors. Two of these creatures may meet and exchange their colors with each one independently calculating and adopting a complementary color depending on those two. These creatures have to be implemented using preemptive kernel or lightweight threads. Since the color calculation is trivial this test's performance depends in full on the available thread synchronization primitives and writes to shared data. It therefore represents a worst case scenario for the implemented threading model. The complete source code is available in appendix \ref{app:chameneos_part}.
+
+Preliminary benchmarks have shown Parrot's performance to be within an order of magnitude with that of an optimized implementation in Perl 5. Since Parrot does not yet offer the user any synchronization primitives, locks had to be implemented using a shared variable which is written to only by the main thread. Replacing this very primitive method with a native semaphore implementation would probably reduce runtime to a small fraction.
+
+\section{mandel\_inter.winxed}
+
+Calculating an image of the Mandelbrot set is a common benchmark for multithreading implementations since calculations of points are independent of each other and are thus easily parallelizable. A simple implementation of the escape time algorithm written in Winxed has been used to determine scalability properties of the threading implementation. The image is split into lines which are calculated alternatedly by a configured number of tasks. Run times were measured using the \textit{time} command on an Intel Core i7 3770K processor with 16 GiB of RAM running openSUSE 12.1 and are recorded in table \ref{benchmark:mandel}
+
+\begin{table}
+\caption{Runtime comparison for Mandelbrot set calculation}
+\label{benchmark:mandel}
+\begin{tabular}{|l||c||c|c|c|c|} \hline
+& \emph{singlethreaded} & \emph{1 thread} & \emph{2 threads} & \emph{4 threads} & \emph{8 threads} \\
+\hline
+1. run  & 89.931s & 89.978s & 45.813s & 24.028s & 17.445s \\
+\hline
+2. run  & 89.707s & 89.871s & 45.906s & 24.048s & 17.695s \\
+\hline
+3. run  & 90.318s & 89.839s & 45.951s & 24.049s & 17.573s \\
+\hline
+average & 89.985s & 89.896s & 45.890s & 24.042s & 17.571s  \\
+\hline
+speedup & 1       &  1      &  1.959  &  3.739  &  5.116  \\
+\hline
+\end{tabular}
+\end{table}
+
+As can be seen in the results, the implementation scales nearly linearly up to 4 threads reflecting the CPUs 4 physical cores. Using 8 threads the speedup is only 1.368 compared to 4 threads but this seems to be more a limitation of the hardware than the implementation.
 
 \chapter{Conclusion, Further Work and Experiences (3)}
 
