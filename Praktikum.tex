@@ -1,5 +1,3 @@
-%%% Einfaches Template für den Praktikumsbericht (2. Bachelorarbeit)
-
 \documentclass[praktikum,german]{hgbthesis}
 \graphicspath{{images/}}   				% wo liegen die EPS-Bilder?
 %\AddBibFile{literatur.bib}  % Angabe der BibTeX-Datei
@@ -31,24 +29,23 @@
 %%%----------------------------------------------------------
 
 \chapter{Kurzfassung}
-Umfang der Kurzfassung: ca.\ 200 Worte.
 
-Zum allgemeinen Inhalt des Berichts: Dieser Bericht beschreibt den Ablauf des Praktikums, die Aufgaben und durchgeführten Projekte und Erfahrungen. Die eigenen Aktivitäten (Projekte) stehen dabei natürlich im Mittelpunkt und bilden den Hauptteil des Berichts. Wenn viele Kleinprojekte bearbeitet wurden, sollten einige davon exemplarisch
-genauer beschrieben werden. Neben der eigentlichen Arbeit sollten aber auch folgende weitere Aspekte berücksichtigt werden:
+Atikon EDV \& Marketing GmbH entwickelt Webseiten für hauptsächlich Steuerberater und Ärzte, sowie Software für Steuerberater. Als Leiter der Webprogrammierung führe ich ein Team von 5 Programmierern. Wir entwickeln Software für den internen Gebrauch sowie für externe Kunden, z.B. das Content Management System, die Projektverwaltung, Online-Steuerberechnung und Individualentwicklung wie z.B. ein CRM System für einen unserer Kunden.
+
+Mit inzwischen über 1100 aktiven Webseiten ergeben sich in der Programmierung interessante Aufgaben von der Skalierung des Systems über die User Interface Gestaltung bis zur Automatisierung von Routineaufgaben um die Wartung und Pflege der Webseiten so effizient wie möglich zu gestalten.
+
+Bei der Programmierung des Content Management Systems galt es ein bestehendes System abzulösen, das mit fast 1000 Webseiten an seine Grenzen gestoßen war. Ziel war dabei eine vollständige Übernahme von bestehenden Webseiten in das neue System, da diese weiterhin gewartet werden müssen und automatisiert Inhalte wie Steuernews darauf verteilt werden. Während das alte CMS auf Python basiert und eine objektorientierte Datenbank (ZODB) benutzt, ist das neue in Perl geschrieben und benutzt PostgreSQL als Datenbank.
+
+Meine Aufgaben waren dabei neben der Projektleitung:
 %
 \begin{itemize}
-\item Abläufe (Workflows) innerhalb des Unternehmens bzw. in Projekten (grafische Darstellungen
-können dabei nützlich sein)
-\item Arbeits- und Führungsstil, Kommunikation innerhalb des Unternehmens
-\item Kommunikation nach außen (Kunden, Partner)
-\item Zeitsituation, Terminprobleme
-\item Einbettung in das Team, soziale Erfahrungen
-\item Einsatz von speziellen Techniken, Methoden und Werkzeugen.
-\item Wichtige Herausforderungen oder Schwierigkeiten
-\item Anforderungen in Bezug auf die Ausbildung im Studium (gut einsetzbare Kenntnisse, Defizite)
+\item{Entwurf der Architektur des neuen Systems}
+\item{Implementierung der Grundstruktur}
+\item{Implementierung des Exports aus dem alten CMS}
+\item{Implementierung der Unterstützung für die Templatesprache des alten CMS}
+\item{Erweiterung des Inline::Python Perlmoduls um die von uns benötigten Features}
+\item{Implementierung von automatischen Kompatibilitätstests mittels Screenshotvergleich der Webseiten mit allen Unterseiten.}
 \end{itemize}
-%
-Die nachfolgenden Kapitelüberschriften sollen nur zur Orientierung für die Struktur des Berichts dienen, über die konkrete Einteilung und den Wortlaut kann man natürlich selbst entscheiden.
 
 %%%----------------------------------------------------------
 \mainmatter           %Hauptteil (ab hier arab. Seitenzahlen)
