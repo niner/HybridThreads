@@ -68,10 +68,11 @@ Das fünfköpfige Team der Webprogrammierung kümmert sich um Webanwendungen sowohl
 \item Kundenprojekte wie z.B. ein Online-CRM-System
 \end{itemize}
 
-\chapter{Projekte und Tätigkeiten während des Praktikums}
+Die Software ist dabei größtenteils in Perl geschrieben. Als Datenbank kommt hauptsächlich PostgreSQL zum Einsatz. Alte Anwendungen sind teilweise in PHP oder Python geschrieben und setzen auf MySQL.
 
-\section{CMS3000}
-Umfang: 2--3 Seiten (Projektziel(e), Projektumfeld)
+\chapter{Ausgangslage}
+
+\section{Das abzulösende System}
 
 Websites sind eines der Hauptprodukte der Firma. Die Kundenstruktur findet sich auch abgebildet auf die ca. 1600 bisher erstellten Websites wieder. Steuerberater sind zumeist eher kleine Unternehmen. Es gibt jedoch unter ihnen auch Netzwerke aus zahlreichen Einzelunternehmen mit zusammen 100en Standorten und 1000en Mitarbeitern. Dementsprechend sind auch bis auf einzelne Ausnahmen die meisten der von uns erstellten und betreuten Websites relativ klein. Die wichtigsten Verkaufsargumente sind die einerseits verfügbaren branchenspezifischen Inhalte wie z.B. regelmäßig aktualisierte Steuernews, andererseits aber die vollständige Individualisierung von Layouts und Websitestruktur.
 
@@ -85,17 +86,43 @@ Dementsprechend gestalten sich daher auch die Anforderungen an das Content Manag
 \item Einfache Bedienung für Kunden mit Eigenwartung
 \end{itemize}
 
-In den ersten 10 Jahren des Firmenbestehens hat das deutsche Produkt "ZMS" die Anforderungen am besten erfüllt. Es handelt sich dabei um freie, GPL lizenzierte Software, die in Python geschrieben ist und auf dem Zope Application Server basiert.
+In den ersten 10 Jahren des Firmenbestehens hat das deutsche Produkt ``ZMS'' die Anforderungen am besten erfüllt. Es handelt sich dabei um freie, GPL lizenzierte Software, die in Python geschrieben ist und auf dem Zope Application Server basiert. Zope bringt eine eigene, objektorientierte Datenbank mit, genannt ``ZODB''. Diese Datenbank ist im Prinzip ein serialisierter Graph von Pythonobjekten, der zusammen mit den Indizes in einer Datei gespeichert wird. Der Application Server bringt eine eigene Weboberfläche mit, in der diese Datenbank als hierarchische Ordner- und Dateistruktur dargestellt wird.
 
-\chapter{Projektbeispiele}
-Umfang: 5--6 Seiten (Umsetzung, grober Terminplan, Ergebnisse, Qualitätssicherungsmaßnahmen)
-   
-   
+ZMS führt diese Grundstruktur fort, indem es die Inhalte von Webseiten ebenfalls in einer Ordner- und Dokumentenstruktur präsentiert. Das Layout wird durch Templates definiert, die in der Zope-eigenen Templatesprache ``DTML'' geschrieben sind. Diese Sprache bietet in einer HTML-ähnlichen Syntax die üblichen Konstrukte wie Verzweigungen, Schleifen, Definition und Ausgabe von Variablen. Diese Konstrukte unterstützen dabei die Formulierung von komplexen Ausdrücken in Python:
+%
+\begin{GenericCode}
+    <dtml-var "getObjPropert('foo', REQUEST).upper()" html_quote>
+\end{GenericCode}
+
+In diesem Beispiel wird die \textit{getObjProperty} Methode des Kontextobjekts aufgerufen mit dem String ``foo'' und dem immer verfügbaren REQUEST-Objekt als Parameter. Als Ergebnis wird ein String erwartet, dessen upper() Methode den String in Großbuchstaben zurückliefert. Das Ergebnis des Ausdrucks wird ausgegeben, wobei Zeichen, die in HTML eine spezielle Bedeutung haben escaped werden.
+
+Das für uns wichtigste Feature des ZMS war die einfache Erweiterbarkeit der zur Verfügung stehenden Inhaltsobjekte. ZMS erlaubt die Definition von eigenen sogenannten ``speziellen Objekten'' mit beliebigen Datenfeldern und eigenem Ausgabetemplate. Das Eingabeinterface wird dabei automatisch generiert. Damit ist es z.B. sehr einfach möglich für eine Mitarbeiterseite ein Mitarbeiter-Objekt zu definieren wo der entsprechende Mitarbeiter mit Namen, Emailadresse und Durchwahl zusammen mit einem Bild ausgegeben wird. Dieser Mechanismus erlaubt es, unterschiedlichsten Kundenanforderungen gerecht zu werden.
+
+\section{Probleme}
+
+Die Probleme, die zum Entschluss einer Neuprogrammierung geführt haben, waren dabei folgende:
+
+\subsection{Zuverlässigkeit}
+
+Der Zope Server kann nur starten, wenn er die Zope-Datenbank lesen kann. Gleichzeitig ist die Weboberfläche des Zope-Servers die einzige Möglichkeit um die Zope-Datenbank manuell zu bearbeiten. Ist nun die Datenbank durch Programmfehler beschädigt, gibt es kaum Mittel um sie zu reparieren. Derartige Probleme haben die Firma schon komplette Arbeitstage gekostet und dazu geführt, dass am Schluss ein stündliches Backup der Datenbank erstellt wurde.
+
+\subsection{Performance}
+
+Operationen, die alle Websites betreffen wie zum Beispiel das Update von gemeinsamen Inhalten, das bloße Auflisten aller Websites oder ein Durchsuchen aller Websites zeigten ein höchst unberechenbares und exponentielles Laufzeitverhalten. Das Auflisten der Websites konnte von wenigen Sekunden bis zu mehreren Minuten dauern. Das Inhaltsupdate lief mehrere Stunden während derer der Zugriff extrem verlangsamt wurde, weshalb es nur über Nacht durchgeführt werden konnte.
+
+In Zope wird jeder Webrequest automatisch in einer Transaktion ausgeführt. Treten Zugriffskonflikte mit anderen Transaktionen auf, wird die Transaktion automatisch zurückgesetzt und der Request wiederholt. Dies passiert vollautomatisch bis zu drei Mal bevor Zope den Request mit einer Fehlermeldung beendet. Bei Transaktionen, die mehrere Stunden laufen ist die Chance auf ein erfolgreiches Durchkommen sehr klein und die Zeit bis zur erfolgreichen Erledigung sehr lang. Als Abhilfe wurden derartige Zugriffe möglichst unterteilt (z.B. das Inhaltsupdate nur für einzelne Websites) und von außen gesteuert durchgeführt. Dies hat die Komplexität und damit die Fehleranfälligkeit wieder erhöht.
+
+Die Speicherung als Objektgraph macht bestimmte Operationen, die in SQL Datenbanken sehr schnell gehen äußerst langsam, z.B. das Durchsuchen der gesamten Website nach Objekten eines bestimmten Typs um zum Beispiel die neuesten News aller Kategorien gesammelt auf einer Startseite anzuzeigen.
+
+\subsection{Wartbarkeit}
+
+DTML verleitet dazu Präsentation und Logik zu mischen und beides in einem Template einzubauen. Gleichzeitig macht es durch fortgeschrittene Features das Lesen von Code schwierig und unzuverlässig. Es gibt in DTML nur einen einzigen, großen Namensraum. In diesem sind die Methoden und Eigenschaften des impliziten Kontextobjekts genauso enthalten, wie eingebaute Funktionen der Sprache und die aller höher liegenden Objekte in der Hierarchie. Da Templates und Scripte als Datei-Objekte üblicherweise im Wurzelverzeichnis einer Website abgelegt werden, sind diese als Eigenschaften des Wurzelverzeichnises überall ohne weitere Qualifikation verfügbar. Das trifft jedoch auch auf Objekte zu, die weiter oben in der Hierarchie liegen. Zum Beispiel hat das Anlegen eines Ordners namens ``test'' in der obersten Hierarchieebene dazu geführt, dass bei manchen Websites Fehler ausgegeben wurden, weil in manchen Ausdrücken dieser Ordner statt der globalen Funktion gleichen Namens gefunden wurde und ein Ordner kein ausführbares Objekt ist.
+
+\chapter{CMS 3000}
+
+Die Entscheidung für eine Eigenentwicklung wurde aus zwei Gründen gefällt. Einerseits wurde bei einer Marktanalyse kein System mit einem ähnlich gut auf die Kundenstruktur passendem Featureprofil gefunden. Andererseits bestand der Wunsch für die bestehenden 1000 Websites einen Upgradepfad zu ermöglichen um den Wartungsaufwand zu minimieren.
+
 \chapter{Erfahrungen und Zusammenfassung}
-Umfang: 1--2 Seiten
-
-
-Zum allgemeinen Inhalt des Berichts: Dieser Bericht beschreibt den Ablauf des Praktikums, die Aufgaben und durchgeführten Projekte und Erfahrungen. Die eigenen Aktivitäten (Projekte) stehen dabei natürlich im Mittelpunkt und bilden den Hauptteil des Berichts. Wenn viele Kleinprojekte bearbeitet wurden, sollten einige davon exemplarisch und im Detail beschrieben werden.
 
 
 %%%----------------------------------------------------------
