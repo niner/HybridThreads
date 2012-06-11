@@ -34,7 +34,7 @@ Atikon EDV \& Marketing GmbH entwickelt Webseiten für hauptsächlich Steuerberate
 
 Mit inzwischen über 1100 aktiven Webseiten ergeben sich in der Programmierung interessante Aufgaben von der Skalierung des Systems über die User Interface Gestaltung bis zur Automatisierung von Routineaufgaben um die Wartung und Pflege der Webseiten so effizient wie möglich zu gestalten.
 
-Bei der Programmierung des Content Management Systems galt es ein bestehendes System abzulösen, das mit fast 1000 Webseiten an seine Grenzen gestoßen war. Ziel war dabei eine vollständige Übernahme von bestehenden Webseiten in das neue System, da diese weiterhin gewartet werden müssen und automatisiert Inhalte wie Steuernews darauf verteilt werden. Während das alte CMS auf Python basiert und eine objektorientierte Datenbank (ZODB) benutzt, ist das neue in Perl geschrieben und benutzt PostgreSQL als Datenbank.
+Bei der Programmierung des Content Management Systems galt es ein bestehendes System abzulösen, das mit fast 1000 Webseiten an seine Grenzen gestoßen war. Ziel war dabei eine vollständige Übernahme von bestehenden Webseiten in das neue System, da diese weiterhin gewartet werden müssen und automatisiert Inhalte wie Steuernews darauf verteilt werden. Während das alte CMS auf Python basiert und eine objektorientierte Datenbank (ZODB) benutzt, ist das neue in Perl geschrieben und benutzt \textit{PostgreSQL} als Datenbank.
 
 Meine Aufgaben waren dabei neben der Projektleitung:
 %
@@ -68,7 +68,7 @@ Das fünfköpfige Team der Webprogrammierung kümmert sich um Webanwendungen sowohl
 \item Kundenprojekte wie z.B. ein Online-CRM-System
 \end{itemize}
 
-Die Software ist dabei größtenteils in Perl geschrieben. Als Datenbank kommt hauptsächlich PostgreSQL zum Einsatz. Alte Anwendungen sind teilweise in PHP oder Python geschrieben und setzen auf MySQL.
+Die Software ist dabei größtenteils in Perl geschrieben. Als Datenbank kommt hauptsächlich \textit{PostgreSQL} zum Einsatz. Alte Anwendungen sind teilweise in PHP oder Python geschrieben und setzen auf MySQL.
 
 \chapter{Ausgangslage}
 
@@ -86,17 +86,17 @@ Dementsprechend gestalten sich daher auch die Anforderungen an das Content Manag
 \item Einfache Bedienung für Kunden mit Eigenwartung
 \end{itemize}
 
-In den ersten 10 Jahren des Firmenbestehens hat das deutsche Produkt ``ZMS'' die Anforderungen am besten erfüllt. Es handelt sich dabei um freie, GPL lizenzierte Software, die in Python geschrieben ist und auf dem Zope Application Server basiert. Zope bringt eine eigene, objektorientierte Datenbank mit, genannt ``ZODB''. Diese Datenbank ist im Prinzip ein serialisierter Graph von Pythonobjekten, der zusammen mit den Indizes in einer Datei gespeichert wird. Der Application Server bringt eine eigene Weboberfläche mit, in der diese Datenbank als hierarchische Ordner- und Dateistruktur dargestellt wird.
+In den ersten 10 Jahren des Firmenbestehens hat das deutsche Produkt \textit{ZMS} die Anforderungen am besten erfüllt. Es handelt sich dabei um freie, GPL lizenzierte Software, die in Python geschrieben ist und auf dem \text{Zope} Application Server basiert. \textit{Zope} bringt eine eigene, objektorientierte Datenbank mit, genannt ``ZODB''. Diese Datenbank ist im Prinzip ein serialisierter Graph von Pythonobjekten, der zusammen mit den Indizes in einer Datei gespeichert wird. Der Application Server bringt eine eigene Weboberfläche mit, in der diese Datenbank als hierarchische Ordner- und Dateistruktur dargestellt wird.
 
-ZMS führt diese Grundstruktur fort, indem es die Inhalte von Webseiten ebenfalls in einer Ordner- und Dokumentenstruktur präsentiert. Das Layout wird durch Templates definiert, die in der Zope-eigenen Templatesprache ``DTML'' geschrieben sind. Diese Sprache bietet in einer HTML-ähnlichen Syntax die üblichen Konstrukte wie Verzweigungen, Schleifen, Definition und Ausgabe von Variablen. Diese Konstrukte unterstützen dabei die Formulierung von komplexen Ausdrücken in Python:
+\textit{ZMS} führt diese Grundstruktur fort, indem es die Inhalte von Webseiten ebenfalls in einer Ordner- und Dokumentenstruktur präsentiert. Das Layout wird durch Templates definiert, die in der \textit{Zope}-eigenen Templatesprache \textit{DTML} geschrieben sind. Diese Sprache bietet in einer HTML-ähnlichen Syntax die üblichen Konstrukte wie Verzweigungen, Schleifen, Definition und Ausgabe von Variablen. Diese Konstrukte unterstützen dabei die Formulierung von komplexen Ausdrücken in Python:
 %
 \begin{GenericCode}
-    <dtml-var "getObjPropert('foo', REQUEST).upper()" html_quote>
+    <dtml-var "getObjProperty('foo', REQUEST).upper()" html_quote>
 \end{GenericCode}
 
 In diesem Beispiel wird die \textit{getObjProperty} Methode des Kontextobjekts aufgerufen mit dem String ``foo'' und dem immer verfügbaren REQUEST-Objekt als Parameter. Als Ergebnis wird ein String erwartet, dessen upper() Methode den String in Großbuchstaben zurückliefert. Das Ergebnis des Ausdrucks wird ausgegeben, wobei Zeichen, die in HTML eine spezielle Bedeutung haben escaped werden.
 
-Das für uns wichtigste Feature des ZMS war die einfache Erweiterbarkeit der zur Verfügung stehenden Inhaltsobjekte. ZMS erlaubt die Definition von eigenen sogenannten ``speziellen Objekten'' mit beliebigen Datenfeldern und eigenem Ausgabetemplate. Das Eingabeinterface wird dabei automatisch generiert. Damit ist es z.B. sehr einfach möglich für eine Mitarbeiterseite ein Mitarbeiter-Objekt zu definieren wo der entsprechende Mitarbeiter mit Namen, Emailadresse und Durchwahl zusammen mit einem Bild ausgegeben wird. Dieser Mechanismus erlaubt es, unterschiedlichsten Kundenanforderungen gerecht zu werden.
+Das für uns wichtigste Feature des \textit{ZMS} war die einfache Erweiterbarkeit der zur Verfügung stehenden Inhaltsobjekte. \textit{ZMS} erlaubt die Definition von eigenen sogenannten ``speziellen Objekten'' mit beliebigen Datenfeldern und eigenem Ausgabetemplate. Das Eingabeinterface wird dabei automatisch generiert. Damit ist es z.B. sehr einfach möglich für eine Mitarbeiterseite ein Mitarbeiter-Objekt zu definieren wo der entsprechende Mitarbeiter mit Namen, Emailadresse und Durchwahl zusammen mit einem Bild ausgegeben wird. Dieser Mechanismus erlaubt es, unterschiedlichsten Kundenanforderungen gerecht zu werden.
 
 \section{Probleme}
 
@@ -104,23 +104,33 @@ Die Probleme, die zum Entschluss einer Neuprogrammierung geführt haben, waren da
 
 \subsection{Zuverlässigkeit}
 
-Der Zope Server kann nur starten, wenn er die Zope-Datenbank lesen kann. Gleichzeitig ist die Weboberfläche des Zope-Servers die einzige Möglichkeit um die Zope-Datenbank manuell zu bearbeiten. Ist nun die Datenbank durch Programmfehler beschädigt, gibt es kaum Mittel um sie zu reparieren. Derartige Probleme haben die Firma schon komplette Arbeitstage gekostet und dazu geführt, dass am Schluss ein stündliches Backup der Datenbank erstellt wurde.
+Der \textit{Zope}-Server kann nur starten, wenn er die \textit{Zope}-Datenbank lesen kann. Gleichzeitig ist die Weboberfläche des \textit{Zope}-Servers die einzige Möglichkeit um die \textit{Zope}-Datenbank manuell zu bearbeiten. Ist nun die Datenbank durch Programmfehler beschädigt, gibt es kaum Mittel um sie zu reparieren. Derartige Probleme haben die Firma schon komplette Arbeitstage gekostet und dazu geführt, dass am Schluss ein stündliches Backup der Datenbank erstellt wurde.
 
 \subsection{Performance}
 
 Operationen, die alle Websites betreffen wie zum Beispiel das Update von gemeinsamen Inhalten, das bloße Auflisten aller Websites oder ein Durchsuchen aller Websites zeigten ein höchst unberechenbares und exponentielles Laufzeitverhalten. Das Auflisten der Websites konnte von wenigen Sekunden bis zu mehreren Minuten dauern. Das Inhaltsupdate lief mehrere Stunden während derer der Zugriff extrem verlangsamt wurde, weshalb es nur über Nacht durchgeführt werden konnte.
 
-In Zope wird jeder Webrequest automatisch in einer Transaktion ausgeführt. Treten Zugriffskonflikte mit anderen Transaktionen auf, wird die Transaktion automatisch zurückgesetzt und der Request wiederholt. Dies passiert vollautomatisch bis zu drei Mal bevor Zope den Request mit einer Fehlermeldung beendet. Bei Transaktionen, die mehrere Stunden laufen ist die Chance auf ein erfolgreiches Durchkommen sehr klein und die Zeit bis zur erfolgreichen Erledigung sehr lang. Als Abhilfe wurden derartige Zugriffe möglichst unterteilt (z.B. das Inhaltsupdate nur für einzelne Websites) und von außen gesteuert durchgeführt. Dies hat die Komplexität und damit die Fehleranfälligkeit wieder erhöht.
+In \textit{Zope} wird jeder Webrequest automatisch in einer Transaktion ausgeführt. Treten Zugriffskonflikte mit anderen Transaktionen auf, wird die Transaktion automatisch zurückgesetzt und der Request wiederholt. Dies passiert vollautomatisch bis zu drei Mal bevor \textit{Zope} den Request mit einer Fehlermeldung beendet. Bei Transaktionen, die mehrere Stunden laufen ist die Chance auf ein erfolgreiches Durchkommen sehr klein und die Zeit bis zur erfolgreichen Erledigung sehr lang. Als Abhilfe wurden derartige Zugriffe möglichst unterteilt (z.B. das Inhaltsupdate nur für einzelne Websites) und von außen gesteuert durchgeführt. Dies hat die Komplexität und damit die Fehleranfälligkeit wieder erhöht.
 
 Die Speicherung als Objektgraph macht bestimmte Operationen, die in SQL Datenbanken sehr schnell gehen äußerst langsam, z.B. das Durchsuchen der gesamten Website nach Objekten eines bestimmten Typs um zum Beispiel die neuesten News aller Kategorien gesammelt auf einer Startseite anzuzeigen.
 
 \subsection{Wartbarkeit}
 
-DTML verleitet dazu Präsentation und Logik zu mischen und beides in einem Template einzubauen. Gleichzeitig macht es durch fortgeschrittene Features das Lesen von Code schwierig und unzuverlässig. Es gibt in DTML nur einen einzigen, großen Namensraum. In diesem sind die Methoden und Eigenschaften des impliziten Kontextobjekts genauso enthalten, wie eingebaute Funktionen der Sprache und die aller höher liegenden Objekte in der Hierarchie. Da Templates und Scripte als Datei-Objekte üblicherweise im Wurzelverzeichnis einer Website abgelegt werden, sind diese als Eigenschaften des Wurzelverzeichnises überall ohne weitere Qualifikation verfügbar. Das trifft jedoch auch auf Objekte zu, die weiter oben in der Hierarchie liegen. Zum Beispiel hat das Anlegen eines Ordners namens ``test'' in der obersten Hierarchieebene dazu geführt, dass bei manchen Websites Fehler ausgegeben wurden, weil in manchen Ausdrücken dieser Ordner statt der globalen Funktion gleichen Namens gefunden wurde und ein Ordner kein ausführbares Objekt ist.
+\textit{DTML} verleitet dazu Präsentation und Logik zu mischen und beides in einem Template einzubauen. Gleichzeitig macht es durch fortgeschrittene Features das Lesen von Code schwierig und unzuverlässig. Es gibt in \textit{DTML} nur einen einzigen, großen Namensraum. In diesem sind die Methoden und Eigenschaften des impliziten Kontextobjekts genauso enthalten, wie eingebaute Funktionen der Sprache und die aller höher liegenden Objekte in der Hierarchie. Da Templates und Scripte als Datei-Objekte üblicherweise im Wurzelverzeichnis einer Website abgelegt werden, sind diese als Eigenschaften des Wurzelverzeichnises überall ohne weitere Qualifikation verfügbar. Das trifft jedoch auch auf Objekte zu, die weiter oben in der Hierarchie liegen. Zum Beispiel hat das Anlegen eines Ordners namens ``test'' in der obersten Hierarchieebene dazu geführt, dass bei manchen Websites Fehler ausgegeben wurden, weil in manchen Ausdrücken dieser Ordner statt der globalen Funktion gleichen Namens gefunden wurde und ein Ordner kein ausführbares Objekt ist.
 
 \chapter{CMS 3000}
 
 Die Entscheidung für eine Eigenentwicklung wurde aus zwei Gründen gefällt. Einerseits wurde bei einer Marktanalyse kein System mit einem ähnlich gut auf die Kundenstruktur passendem Featureprofil gefunden. Andererseits bestand der Wunsch für die bestehenden 1000 Websites einen Upgradepfad zu ermöglichen um den Wartungsaufwand zu minimieren.
+
+\section{Grundstruktur}
+
+Als Datenspeicher wurde \textit{PostgreSQL} gewählt, eine freie und zugleich mächtige und performante SQL Datenbank. Um die einfache Erweiterbarkeit des \textit{ZMS}, wo für jede Seite neue Objekttypen definiert weden können und sogar bestehende um neue Felder erweitert, zu erhalten, bekommt jede Website ein komplett eigenes Datenbankschema. Diese Schemata werden in der Datenbank als getrennte Namensräume (im \textit{PostgreSQL} Jargon ebenfalls ``schema'') ausgeführt. Da dadurch die Anzahl der Datenbanktabellen mit jeder Website stark steigt, wurden Voruntersuchungen durchgeführt, ob \textit{PostgreSQL} mit mehreren 100.000 Tabellen umgehen kann. Es wurden dabei keine inhärenten Einschränkungen gefunden. Die Skalierung hängt rein vom darunterliegenden Dateisystem ab. Das verwendete \textit{ext4} scheint gut zu skalieren.
+
+Die Wahl der Programmiersprache fiel auf Perl, da in der Firma viel Know How für diese Sprache vorhanden ist. Mit \textit{Catalyst} steht ein flexibles MVC Framework für Webanwendungen zur Verfügung. Im \textit{Perl Comprehensive Archive Network} (\textit{CPAN}) sind unzählige Libraries verfügbar, von denen ca. 80 dann auch verwendet wurden. Weiters ausschlaggebend war die gute Unterstützung für UTF-8 codiertes Unicode.
+
+Ein Risikopunkt bei dieser Wahl war die Unterstützung für 10.000e bestehende Templates und die Python-Ausdrücke, die diese enthalten. Mögliche Varianten waren hier eine automatisierte Übersetzung von Python auf Perl und das Einbinden eines Python-Interpreters mittels des Inline::Python Perlmoduls. Den Ausschlag für letzteres gab dessen Fortgeschrittenheit im Vergleich zu den bestehenden Übersetzungslösungen.
+
+Die Anwendung wird vom Webserver über das FastCGI Protokoll angesprochen, da \textit{Catalyst} dafür alles nötige bereits mitbringt. \textit{memcached} wird als gemeinsamer Objektcache verwendet um die Datenbank zu entlasten.
 
 \chapter{Erfahrungen und Zusammenfassung}
 
