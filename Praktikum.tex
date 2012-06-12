@@ -128,9 +128,27 @@ Als Datenspeicher wurde \textit{PostgreSQL} gewählt, eine freie und zugleich mäc
 
 Die Wahl der Programmiersprache fiel auf Perl, da in der Firma viel Know How für diese Sprache vorhanden ist. Mit \textit{Catalyst} steht ein flexibles MVC Framework für Webanwendungen zur Verfügung. Im \textit{Perl Comprehensive Archive Network} (\textit{CPAN}) sind unzählige Libraries verfügbar, von denen ca. 80 dann auch verwendet wurden. Weiters ausschlaggebend war die gute Unterstützung für UTF-8 codiertes Unicode.
 
-Ein Risikopunkt bei dieser Wahl war die Unterstützung für 10.000e bestehende Templates und die Python-Ausdrücke, die diese enthalten. Mögliche Varianten waren hier eine automatisierte Übersetzung von Python auf Perl und das Einbinden eines Python-Interpreters mittels des Inline::Python Perlmoduls. Den Ausschlag für letzteres gab dessen Fortgeschrittenheit im Vergleich zu den bestehenden Übersetzungslösungen.
+Ein Risikofaktor bei dieser Wahl war die Unterstützung für 10.000e bestehende Templates und die Python-Ausdrücke, die diese enthalten. Mögliche Varianten waren hier eine automatisierte Übersetzung von Python auf Perl und das Einbinden eines Python-Interpreters mittels des Inline::Python Perlmoduls. Den Ausschlag für letzteres gab dessen Fortgeschrittenheit im Vergleich zu den bestehenden Übersetzungslösungen.
 
 Die Anwendung wird vom Webserver über das FastCGI Protokoll angesprochen, da \textit{Catalyst} dafür alles nötige bereits mitbringt. \textit{memcached} wird als gemeinsamer Objektcache verwendet um die Datenbank zu entlasten.
+
+\section{Datenbankaufbau}
+
+Jede Website besitzt ein eigenes Datenbankschema, das in einem PostgreSQL-schema, benannt nach dem Domainnamen der Website, enthalten ist. Für jede Objektart gibt es hier eine eigene Tabelle. Alle Typen sind von einer gemeinsamen Basisklasse namens \textit{ZMS::Object} abgeleitet. Das spiegelt sich im Datenbankschema wieder. In einer Tabelle namens \textit{zms\_object} werden für jedes gespeicherte Objekt die Eigenschaften der Basisklasse gespeichert. Das sind neben der von der Datenbank vergebenen, Website-weit eindeutigen \textit{uid} und einer textuellen \textit{id}, die nur unter den Kindobjekten eines gemeinsamen Elternobjektes eindeutig sein muss, vor allem auch der Name der Tabelle, in der die typspezifischen Daten gespeichert sind. Weiters finden sich dort ein Verweis auf das Elternelement, Informationen zur Sortierreihenfolge, das \textit{active} Flag und Änderungsdaten. Für jeden Typ gibt es neben einer eigenen Tabelle auch eine writable View die die jeweilige Tabelle und \textit{zms\_object} zusammenführt.
+
+Das Datenbankschema selbst ist in den Tabellen \textit{zms\_meta\_objects} und \textit{zms\_object\_attrs} beschrieben, wo es für jeden Typ bzw. jedes Attribut eines Typs Einträge gibt. Diese Tabellen werden zusammen mit \textit{zms\_languages}, welche Informationen über die in dieser Website verfügbaren Sprachen enthält, zu Beginn jedes Requests gelesen.
+
+Die Objekte einer Website werden in einem Baum verwaltet. Um Abfragen auf Teilbäume effizienter zu machen, werden in der Tabelle \textit{zms\_object\_tree} Informationen über die Baumstruktur gespeichert. Sie erlaubt effiziente Abfragen auf komplette Unterbäume mit optionaler Begrenzung der Suchtiefe. Die Informationen werden von Triggern in der Datenbank automatisch bei Änderungen an den Daten aktualisiert.
+
+Mehrsprachigkeit wird unterstützt indem bei mehrsprachigen Objekteigenschaften jeweils ein Datenbankfeld für jede Sprache angelegt wird. Ist ein Feld in einer Sekundärsprache NULL wird ein Fallback auf die für diese Sprache angegebene Vorgängersprache durchgeführt. Werden neue Sprachen hinzugefügt, oder bestehende entfernt müssen daher alle Datenbanktabellen und Views entsprechend angepasst werden.
+
+\section{Klassenhierarchie}
+
+\textit{ZMS::Object} ist die Basisklasse für alle vom CMS verwalteten Objekte und enthält den Großteil des Interfaces für Templatecode. \textit{ZMS::ContainerObject} ist davon abgeleitet und ist ihrerseits die Basisklasse für alle Objekte, die sich wie Ordner verhalten und Kindobjekte im Baum enthalten können. Von diesen beiden Klassen sind alle Klassen von Inhaltsobjekten abgeleitet. Vom Benutzer erstellte Objekttypen werden von \textit{ZMS::Custom} repräsentiert.
+
+Die von den Inhaltsobjekten unterstützten Attribute sind als von \textit{ZMS::Attribute} abgeleitete Klassen implementiert. Sie enthalten Informationen über den möglicherweise benutzten Datentyp eines Datenbankfeldes, Code zum Rendern des Eingabeinterfaces und für die Eingabevalidierung.
+
+\textit{Catalyst} gibt eine Grundstruktur für den Aufbau der Anwendung mit Unterteilung in Models, Views und Controllern vor. \textit{ZMS::Model::DB} implementiert alle low level Datenbankzugriffe und generiert daher auch alle verwendeten SQL Statements. Um die Ausgabe der Website kümmert sich \textit{ZMS::Controller::Content}. Die Verwaltung der Inhalte wird von \textit{ZMS::Controller::Content::Management} gestellt. Die Verwaltung der Metadaten wie Typen, Sprachen und Benutzer finden sich im \textit{ZMS::Controller::System} Namensraum.
 
 \chapter{Erfahrungen und Zusammenfassung}
 

@@ -5,7 +5,7 @@ Paper.pdf: Paper.tex literature.bib perlexample.tex
 	latex --output-format=pdf Paper.tex
 	bibtex8 Paper.aux
 	latex --output-format=pdf Paper.tex
-#	scp Paper.pdf niner.name:public_html/Hybrid_Threads_for_the_Parrot_VM.pdf
+	scp Paper.pdf niner.name:public_html/Hybrid_Threads_for_the_Parrot_VM.pdf
 
 Praktikum.pdf: Praktikum.tex
 	latex --output-format=pdf Praktikum.tex
