@@ -150,6 +150,15 @@ Die von den Inhaltsobjekten unterstützten Attribute sind als von \textit{ZMS::At
 
 \textit{Catalyst} gibt eine Grundstruktur für den Aufbau der Anwendung mit Unterteilung in Models, Views und Controllern vor. \textit{ZMS::Model::DB} implementiert alle low level Datenbankzugriffe und generiert daher auch alle verwendeten SQL Statements. Um die Ausgabe der Website kümmert sich \textit{ZMS::Controller::Content}. Die Verwaltung der Inhalte wird von \textit{ZMS::Controller::Content::Management} gestellt. Die Verwaltung der Metadaten wie Typen, Sprachen und Benutzer finden sich im \textit{ZMS::Controller::System} Namensraum.
 
+\section{DTML}
+
+In \textit{ZMS::View::DTML} ist das Parsen und Ausführen von DTML Templates implementiert. DTML Anweisungen folgen ähnlich zu HTML immer dem Aufbau:
+<dtml-\textit{command} \textit{options}... \textit{attribute}="\textit{value}"... \textit{options}...>. Sie sind dabei jedoch unabhängig von der HTML Struktur und können an beliebigen Stellen des HTML Codes vorkommen. Beim Parsen wird das Templates mit Hilfe einer Regular Expression in Chunks unterteilt und dabei gleichzeitig der DTML-Ausdruck selbst geparst. Daraus wird anschließend Perlcode generiert, der mit mittels eval Anweisung ausgeführt wird. Für jede DTML-Anweisung konnte eine Perl-Entsprechung gefunden werden.
+
+Der generierte Perlcode wird in einem Cache-File zwischengespeichert. Benannt wird die Datei nach dem DTML Template: headCSS.dtml wird zu .headCSS.dtml.cache
+
+\section{Inline::Python}
+
 \chapter{Erfahrungen und Zusammenfassung}
 
 
