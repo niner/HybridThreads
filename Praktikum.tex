@@ -159,7 +159,28 @@ Der generierte Perlcode wird in einem Cache-File zwischengespeichert. Benannt wi
 
 \section{Inline::Python}
 
+Inline::Python ist ein Perl-Modul, das einen Python-Interpreter in den Perl-Prozess einbindet. Diesen Interpreter kann man benutzen um im selben Prozess Python-Code auszuführen. Inline::Python kümmert sich dabei darum, die Daten von Perl nach Python bzw. umgekehrt zu übersetzen, sodass das Verwenden von Pythonfunktionen von Perlcode heraus und umgekehrt völlig transparent erscheint.
+
+Das Modul wurde von Neil Watkiss entwickelt, der jedoch die Weiterentwicklung nach Version 0.22 vom Jänner 2005 aufgeben musste. Diese Version konnte bereits vieles von der benötigten Funktionalität, enthielt jedoch noch sehr viele Fehler im Speichermanagement. Ich habe daher die Weiterentwicklung offiziell übernommen und war seither für alle Releases (aktuell ist Version 0.40) verantwortlich. Die Fehler rührten daher, dass beide Programmiersprachen eine Reference Count basierende Garbage Collection benutzen, jedoch mit subtilen Unterschieden. Z.B. hält in Python der Stack eine implizite Referenz auf den Rückgabewert einer Funktion, während in Perl die Funktion dafür verantwortlich \textit{sv\_2mortal()} aufzurufen, womit der Referenzzähler nach dem Ausführen der nächsten Perl-Anweisung heruntergezählt wird. Abgesehen davon muss in beiden Sprachen die Referenzzählung in C Code manuell mittels Aufruf entsprechender Makros durchgeführt werden. Diese Zählung war größtenteils falsch. Es wurde sowohl an den falschen Stellen hinauf- wie hinuntergezählt. Das hat dazu geführt, dass Inline::Python zwar oberflächlich funktioniert hat, aber viel Speicher verloren ging. Die Fehler haben sich teilweise gegenseitig aufgehoben, sodass beim Beheben eines Fehlers an einer Stelle dafür ein Fehler an einer anderen aufgetaucht ist. Beheben ließ sich das durch die Erweiterung der Testsuite um umfangreiche Reference Counting Tests und genaues Studium der Entwicklerdokumentation und des Quellcodes sowohl von Python als auch von Perl.
+
+\section{Tests}
+
+Vor der Übernahme der bestehenden Websites in das neue CMS wurden umfangreiche Tests durchgeführt. Diese liefen in drei Phasen ab:
+
+\subsection{Manuelle Tests}
+
+Zufällig ausgewählte Websites wurden manuell durchgeprüft, ob die Ausgabe mit der Originalversion übereinstimmt oder ob unerwartete Fehlermeldungen kommen. In der Anfangsphase wurde man hier noch schnell fündig. Nach Test und Debugging von ca. 10 Websites war die Fundquote jedoch zu niedrig um den Aufwand zu rechtfertigen.
+
+\subsection{Tests auf Fehlermeldungen}
+
+In der nächsten Phase wurden alle 1500 Websites ins neue System importiert und mittels eines Webcrawlers nach Fehlermeldungen des CMS durchsucht. Auf diese Art wurden ca. 100 kleinere Inkompatibilitäten gefunden und behoben.
+
+\subsection{Screenshotvergleiche}
+
+Nachdem keine Fehlermeldungen mehr übrig waren wurde der Crawler erweitert, sodass er durch Fernsteuerung eines Browsers automatisiert Screenshots jeder einzelnen Seite jeder einzelnen Website angefertigt hat und mit einem entsprechenden Screenshot der Originalseite verglichen hat. Waren die Bilder nicht pixelweise identisch wurde dann ein Differenzbild der Screenshots erzeugt. Diese Differenzbilder wurden dann manuell durchkontrolliert und dabei gefundene Fehler behoben.
+
 \chapter{Erfahrungen und Zusammenfassung}
+
 
 
 %%%----------------------------------------------------------
