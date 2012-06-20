@@ -30,7 +30,7 @@
 
 \chapter{Kurzfassung}
 
-Atikon EDV \& Marketing GmbH entwickelt Webseiten für hauptsächlich Steuerberater und Ärzte, sowie Software für Steuerberater. Als Leiter der Webprogrammierung führe ich ein Team von 5 Programmierern. Wir entwickeln Software für den internen Gebrauch sowie für externe Kunden, z.B. das Content Management System, die Projektverwaltung, Online-Steuerberechnung und Individualentwicklung wie z.B. ein CRM System für einen unserer Kunden.
+Atikon EDV \& Marketing GmbH entwickelt Webseiten hauptsächlich für Steuerberater und Ärzte, sowie Software für Steuerberater. Als Leiter der Webprogrammierung führe ich ein Team von 5 Programmierern. Wir entwickeln Software für den internen Gebrauch sowie für externe Kunden, z.B. das Content Management System, die Projektverwaltung, Online-Steuerberechnung und Individualentwicklung wie z.B. ein CRM System für einen unserer Kunden.
 
 Mit inzwischen über 1100 aktiven Webseiten ergeben sich in der Programmierung interessante Aufgaben von der Skalierung des Systems über die User Interface Gestaltung bis zur Automatisierung von Routineaufgaben um die Wartung und Pflege der Webseiten so effizient wie möglich zu gestalten.
 
@@ -70,23 +70,19 @@ Das fünfköpfige Team der Webprogrammierung kümmert sich um Webanwendungen sowohl
 
 Die Software ist dabei größtenteils in Perl geschrieben. Als Datenbank kommt hauptsächlich \textit{PostgreSQL} zum Einsatz. Alte Anwendungen sind teilweise in PHP oder Python geschrieben und setzen auf MySQL.
 
-\chapter{Ausgangslage}
+\chapter{Projekt CMS 3000}
 
-\section{Das abzulösende System}
+\section{Einleitung}
 
 Websites sind eines der Hauptprodukte der Firma. Die Kundenstruktur findet sich auch abgebildet auf die ca. 1600 bisher erstellten Websites wieder. Steuerberater sind zumeist eher kleine Unternehmen. Es gibt jedoch unter ihnen auch Netzwerke aus zahlreichen Einzelunternehmen mit zusammen 100en Standorten und 1000en Mitarbeitern. Dementsprechend sind auch bis auf einzelne Ausnahmen die meisten der von uns erstellten und betreuten Websites relativ klein. Die wichtigsten Verkaufsargumente sind die einerseits verfügbaren branchenspezifischen Inhalte wie z.B. regelmäßig aktualisierte Steuernews, andererseits aber die vollständige Individualisierung von Layouts und Websitestruktur.
 
-Dementsprechend gestalten sich daher auch die Anforderungen an das Content Management System:
-%
-\begin{itemize}
-\item Unterstützung für 1000e individuelle Websites in einem System
-\item Einfache Verteilung und Updates von gemeinsam genutzten Inhalten
-\item Völlige Freiheit bei Design und Struktur
-\item Individuelle Erweiterungen
-\item Einfache Bedienung für Kunden mit Eigenwartung
-\end{itemize}
+\section{Projektziel}
 
-In den ersten 10 Jahren des Firmenbestehens hat das deutsche Produkt \textit{ZMS} die Anforderungen am besten erfüllt. Es handelt sich dabei um freie, GPL lizenzierte Software, die in Python geschrieben ist und auf dem \text{Zope} Application Server basiert. \textit{Zope} bringt eine eigene, objektorientierte Datenbank mit, genannt ``ZODB''. Diese Datenbank ist im Prinzip ein serialisierter Graph von Pythonobjekten, der zusammen mit den Indizes in einer Datei gespeichert wird. Der Application Server bringt eine eigene Weboberfläche mit, in der diese Datenbank als hierarchische Ordner- und Dateistruktur dargestellt wird.
+Das Projekt, das in dieser Arbeit beschrieben wird, hatte zum Ziel, das bestehende Content Management System, welches durch das Wachstum des Kundenstammes an seine Grenzen geraten war, durch ein neu entwickeltes abzulösen. Ziele waren dabei, die Verbesserung von Peformance, Zuverlässigkeit und Usability sowie das Schaffen von mehr Anpassungsmöglichkeiten an unsere Anforderungen.
+
+\section{Das abzulösende System}
+
+In den ersten 10 Jahren des Firmenbestehens wurde das deutsche Produkt \textit{ZMS} eingesetzt. Es handelt sich dabei um freie, GPL lizenzierte Software, die in Python geschrieben ist und auf dem \text{Zope} Application Server basiert. \textit{Zope} bringt eine eigene, objektorientierte Datenbank mit, genannt ``ZODB''. Diese Datenbank ist im Prinzip ein serialisierter Graph von Pythonobjekten, der zusammen mit den Indizes in einer Datei gespeichert wird. Der Application Server bringt eine eigene Weboberfläche mit, in der diese Datenbank als hierarchische Ordner- und Dateistruktur dargestellt wird.
 
 \textit{ZMS} führt diese Grundstruktur fort, indem es die Inhalte von Webseiten ebenfalls in einer Ordner- und Dokumentenstruktur präsentiert. Das Layout wird durch Templates definiert, die in der \textit{Zope}-eigenen Templatesprache \textit{DTML} geschrieben sind. Diese Sprache bietet in einer HTML-ähnlichen Syntax die üblichen Konstrukte wie Verzweigungen, Schleifen, Definition und Ausgabe von Variablen. Diese Konstrukte unterstützen dabei die Formulierung von komplexen Ausdrücken in Python:
 %
@@ -118,9 +114,21 @@ Die Speicherung als Objektgraph macht bestimmte Operationen, die in SQL Datenban
 
 \textit{DTML} verleitet dazu Präsentation und Logik zu mischen und beides in einem Template einzubauen. Gleichzeitig macht es durch fortgeschrittene Features das Lesen von Code schwierig und unzuverlässig. Es gibt in \textit{DTML} nur einen einzigen, großen Namensraum. In diesem sind die Methoden und Eigenschaften des impliziten Kontextobjekts genauso enthalten, wie eingebaute Funktionen der Sprache und die aller höher liegenden Objekte in der Hierarchie. Da Templates und Scripte als Datei-Objekte üblicherweise im Wurzelverzeichnis einer Website abgelegt werden, sind diese als Eigenschaften des Wurzelverzeichnises überall ohne weitere Qualifikation verfügbar. Das trifft jedoch auch auf Objekte zu, die weiter oben in der Hierarchie liegen. Zum Beispiel hat das Anlegen eines Ordners namens ``test'' in der obersten Hierarchieebene dazu geführt, dass bei manchen Websites Fehler ausgegeben wurden, weil in manchen Ausdrücken dieser Ordner statt der globalen Funktion gleichen Namens gefunden wurde und ein Ordner kein ausführbares Objekt ist.
 
-\chapter{CMS 3000}
+\section{Anforderungen}
+
+Entsprechend der Kundenstruktur gestalten sich auch die Anforderungen an das Content Management System:
+%
+\begin{itemize}
+\item Unterstützung für 1000e individuelle Websites in einem System
+\item Einfache Verteilung und Updates von gemeinsam genutzten Inhalten
+\item Völlige Freiheit bei Design und Struktur
+\item Individuelle Erweiterungen
+\item Einfache Bedienung für Kunden mit Eigenwartung
+\end{itemize}
 
 Die Entscheidung für eine Eigenentwicklung wurde aus zwei Gründen gefällt. Einerseits wurde bei einer Marktanalyse kein System mit einem ähnlich gut auf die Kundenstruktur passendem Featureprofil gefunden. Andererseits bestand der Wunsch für die bestehenden 1000 Websites einen Upgradepfad zu ermöglichen um den Wartungsaufwand zu minimieren.
+
+\chapter{Umsetzung}
 
 Der erste Prototyp wurde von mir geschrieben und der Geschäftsführung präsentiert. Vor allem war der direkte Performancevergleich zum Altsystem überzeugend, weshalb das Projekt genehmigt wurde und in die Entwicklung ging. Nach Erstellung des Grundsystems kam nach und nach der Rest des Teams zum Projekt dazu. Mit der Umstellung auf die Entwicklung im Team wurden auch eine Testsuite eingeführt.
 
