@@ -191,6 +191,28 @@ In der nächsten Phase wurden alle 1500 Websites ins neue System importiert und m
 
 Nachdem keine Fehlermeldungen mehr übrig waren wurde der Crawler erweitert, sodass er durch Fernsteuerung eines Browsers automatisiert Screenshots jeder einzelnen Seite jeder einzelnen Website angefertigt hat und mit einem entsprechenden Screenshot der Originalseite verglichen hat. Waren die Bilder nicht pixelweise identisch wurde dann ein Differenzbild der Screenshots erzeugt. Diese Differenzbilder wurden dann manuell durchkontrolliert und dabei gefundene Fehler behoben.
 
+\chapter{Ergebnis}
+
+\begin{figure}
+\includegraphics[width=1\textwidth]{curl_atikon}
+\caption{Durchschnittliche Antwortzeit von www.atikon.com vor und nach der Migration in Sekunden.}
+\label{fig:atikon}
+\end{figure}
+
+\begin{figure}
+\includegraphics[width=1\textwidth]{curl_lask}
+\caption{Durchschnittliche Antwortzeit von www.lask.at vor und nach der Migration in Sekunden.}
+\label{fig:lask}
+\end{figure}
+
+Bereits vor den umfangreichen Kompatibilitätstests wurde angefangen, neue Websites nur noch mit dem neuen CMS zu entwickeln. Damit konnten einerseits noch Fehler in der Benutzeroberfläche gefunden werden und andererseits weiterer Umstellungsaufwand vermieden werden. Die Umstellung der bestehenden Websites wurde dann nach Abschluss der Tests schubweise durchgeführt. Wie in Abbildung \ref{fig:atikon} und \ref{fig:lask} zu sehen ist, verbesserten sich die Antwortzeiten der umgestellten Websites teilweise erheblich. Durch die einfachere Parallelisierbarkeit sind jetzt auch Besucherabstürme auf der Homepage des LASK kein Problem mehr für den Server. Beschwerden über die Performance sind völlig verschwunden.
+
+PostgreSQL hat sich als sehr stabile Basis erwiesen. Von Beginn des Projektes an lief es zuverlässig und problemlos. War früher ein Update der verteilten Inhalte ein fragiler und langwieriger Prozess, der nur außerhalb der Geschäftszeiten durchgeführt werden konnte, wird es jetzt jederzeit bei Bedarf durchgeführt, da es keinen spür- oder messbaren Einfluss auf die Performance des Systems hat.
+
+Durch den performanten Zugriff auf die SQL Datenbank wurden neue Auswertungen ermöglicht. Abfragen, welche Websites welche Inhalte oder Onlinerechner eingebunden haben lassen sich jetzt innerhalb von Sekunden beantworten.
+
+Das Projekt kann daher als voller Erfolg bezeichnet werden.
+
 \chapter{Erfahrungen und Zusammenfassung}
 
 Das Projekt war in vielerlei Hinsicht sehr lehrreich. Auf technischer Seite waren vor allem das Ausreizen der Datenbank zur Speicherung hierarchischer Objektgraphen und die Weiterentwicklung von Inline::Python herausfordernd. Letzteres war für mich der erste Kontakt sowohl mit den Interna von Perl wie auch derer von Python. Es war für mich außerdem das erste Projekt bei dem eine mehrschichtige Cachinginfrastruktur zum Einsatz kam. Der Wert einer umfangreichen und gut strukturierten Testsuite hat sich im Laufe des Projektes mehrfach gezeigt und die Erfahrungen damit sind bereits ins nächste Projekt eingeflossen.
