@@ -446,7 +446,6 @@ acknowledged. I further declare that this or similar work has not been submitted
 \renewcommand{\@batitelseiten}{
 \@batitel
 \@copyrightseite
-\@babetreuerseite
 \@erklaerungsseite
 }
 
