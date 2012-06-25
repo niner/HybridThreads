@@ -109,6 +109,17 @@ In Java, the user is responsible for preventing concurrency issues. The language
 
 Java version 1.1 used \textit{green threads} to support multithreaded execution of Java programs. Green threads are threads simulated by the virtual machine (VM) but unable to use more than one CPU core for processing. Details are described in chapter~\ref{cha:green_threads}. Version 1.2 introduced native Operating System (OS) threading support which since has become the standard way to do multithreading in Java \cite{JavaThreadManual}.
 
+Following is an example of a multithreaded program in Java. The program spawns 10,000 threads, each one waiting for the \textit{starter} variable to be set to 1 before adding it's name to an array:
+\input{thread-java}
+
+The program exploits the fact that all methods in the \textit{Vector} class are synchronized, i.e. thread-safe. If the \textit{results} array was a non-thread-safe \textit{ArrayList} instead, access would have to be locked manually:
+
+\begin{JavaCode}
+synchronize(results) {
+    results.add(name);
+}
+\end{JavaCode}
+
 \section{Python}
 
 Python provides threading support through the \textit{threading} module.
@@ -116,6 +127,11 @@ Python provides threading support through the \textit{threading} module.
 The CPython implementation of the Python runtime uses a \textit{Global Interpreter Lock} (GIL) to protect its internal consistency \cite{PythonThreadingManual}. This is a single lock taken whenever the interpreter executes Python bytecode. Because of this lock, only one thread can execute bytecode at any time so all built-in types and the object model are implicitly type safe. The drawback is that Python code cannot benefit from having multiple CPU cores available. However I/O operations and calls to external libraries are executed without holding the GIL, so in applications with multiple I/O bounded threads, there may still be a performance benefit from using multithreading.
 
 To run Python code in parallel, multiple processes have to be used. The \textit{multiprocessing} module provides support for spawning processes exposed through an API similar to the \textit{threading} module \cite{PythonMultiProcessingManual}. Since processes may not directly access other processes' memory, the \textit{multiprocessing} module provides several means of communication between processes: \textit{Queues}, \textit{Pipes} and shared memory support.
+
+Following is an example of a multithreaded program in Python. The program spawns 10,000 threads, each one waiting for the \textit{starter} variable to be set to 1 before appending it's name to an array:
+\input{thread-python}
+
+Even though many threads append to the same array, they do not have to take any locks. The GIL implicitly protects the array by allowing only one Python instruction to be run at any time.
 
 \chapter{Parrot}
 

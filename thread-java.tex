@@ -1,0 +1,49 @@
+\begin{JavaCode}
+import java.util.Vector;
+import java.util.ArrayList;
+
+class ThreadingExample {
+    private static Vector<Integer> results = new Vector<Integer>();
+    private static int starter = 0;
+
+    private class Sayer extends Thread {
+        private int name;
+
+        public Sayer(int name) {
+            this.name = name;
+        }
+
+        public void run() {
+            while (starter == 0) {
+                try { Thread.sleep(100); } // milliseconds
+                catch(InterruptedException e) { }
+            }
+
+            results.add(name);
+        }
+    }
+
+    public static void main(String args[]) {
+        ThreadingExample e = new ThreadingExample();
+        e.test();
+    }
+
+    private void test() {
+        ArrayList<Thread> threads = new ArrayList<Thread>();
+
+        for (int i = 0; i < 10000; i++) {
+            Thread t = new Sayer(i);
+            t.start();
+            threads.add(t);
+        }
+
+        starter = 1;
+
+        for(Thread t: threads)
+            try { t.join(); }
+            catch(InterruptedException e) { }
+
+        System.out.println(results.size());
+    }
+}
+\end{JavaCode}
