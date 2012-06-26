@@ -2,6 +2,10 @@
 
 \usepackage{wrapfig}
 \usepackage{listings}
+\usepackage{tikz}
+\usepackage{pgf-umlsd}
+\usepgflibrary{arrows}
+\usetikzlibrary{shadows}
 \AddBibFile{literature.bib}
 
 \begin{document}
@@ -150,7 +154,7 @@ The current design of Parrot uses four sets of registers where each one has an u
 
 The first three register types are self explanatory. String in Parrot is a low-level type with the interpreter handling all memory allocation issues and Unicode encoding. String values are immutable.
 
-\section{PolyMorphic Containers (PMCs)}
+\section{\textit{PolyMorphic Containers} (PMCs)}
 \label{sec:PMCs}
 
 PMCs are containers for all high level types such as objects, arrays, hash tables or code. Thus, they are similar to Python's \textit{PythonObject} types. PMCs are defined by C structs and are garbage collected. Their definition looks like:
@@ -183,7 +187,22 @@ When a function is called, instead of pushing a return address on the stack, the
 \section{Runloops}
 \label{sec:Runloops}
 
-A runloop is the inner most loop executing bytecode in Parrot. It is also a data structure containing some information needed to support exception handling. When some operation in Parrot bytecode is calling a C function and this C function in turn is again executing Parrot bytecode, a nested runloop is started. Examples for such situations include calling a library function with a callback as parameter and exceptions thrown inside Parrot's C code calling a previously defined exception handler in user code.
+A runloop is the inner most loop executing bytecode in Parrot. It consists of two steps as shown in the following pseudo code:
+\begin{GenericCode}
+while (pc != NULL) { // program counter points to an opcode
+    op = fetch_opcode_at(pc);
+    pc = execute_opcode(op);
+}
+\end{GenericCode}
+
+\begin{figure}
+\centering
+\includegraphics[scale=.4]{runloops}
+\caption{Example of a callback executing in a nested runloop.}
+\label{fig:runloops}
+\end{figure}
+
+It is also a data structure containing information needed to support exception handling. When some operation in Parrot bytecode is calling a C function and this C function in turn is again executing Parrot bytecode, a nested runloop is started. Examples for such situations include calling a library function with a callback as parameter and exceptions thrown inside Parrot's C code calling a previously defined exception handler in user code. This is shown in figure~\ref{fig:runloops}.
 
 \section{Exception handling}
 
@@ -301,17 +320,47 @@ In keeping the analogy of the interpreter being a software CPU, multithreading i
 
 \section{Shared data}
 
-As described in the introduction, cross-thread writes to shared variables may endanger the internal consistency of the interpreter. Traditionally, the solution to this problem is the use of locks of varying granularity. Fine-grained locking allows code to run in parallel but taking and releasing locks costs performance. It not only increases the instruction count and memory accesses but it also forces the CPU cores to coordinate and thus communicate. Even a seemingly simple operation like an atomic increment can take two orders of magnitude longer than a normal increment \cite{LockingInOSKernels}. While the gain through being able to utilize multiple CPU cores may offset this cost, it is still impacting the common case of having only a singlethread running.
+As described in the introduction, cross-thread writes to shared variables may endanger the internal consistency of the interpreter. Traditionally, the solution to this problem is the use of locks of varying granularity. Fine-grained locking allows code to run in parallel but taking and releasing locks costs performance. It not only increases the instruction count and memory accesses but it also forces the CPU cores to coordinate and thus communicate. Even a seemingly simple operation like an atomic increment can take two orders of magnitude longer than a normal increment \cite{LockingInOSKernels}. While the gain through being able to utilize multiple CPU cores may offset this cost, it is still impacting the common case of having only a single thread running.
 
 Too coarse locking on the other hand would reduce scalability and the performance gains through parallel execution by having threads wait for extended periods for locks to become available. In the extreme case of having a global interpreter lock it would effectively serialize all computations costing much of the benefits of using threads in the first place.
 
 The other problem with locking is the possibility of introducing deadlocks. For example, two functions \textit{F1} and \textit{F2} both use two resources \textit{A} and \textit{B} protected by locks. If \textit{F1} first locks \textit{A} and then tries to lock \textit{B} while \textit{F2} has already locked \textit{B} and is now trying to lock \textit{A}, the program would come to a halt. Both functions would be left waiting for the other to unlock the resource which will never happen. With fine-grained locking, the possibilities for such bugs grow quickly. At the same time, it is easy to miss a case where a lock would be appropriate leading to difficult to diagnose corruption bugs.
 
-The solution for these problems implemented in this thesis is to side step them altogether by disallowing write access to shared variables. The programmer (or in most cases the compiler) is obliged to declare a list of all shared variables before a newly created task is started. The interpreter would then create proxy objects for these variables which the task can use to access the data. These proxies contain references to the original objects. They use these references to forward all reading \textit{vtable} functions to the originals. Write access on the other hand would lead to a runtime error.
+The solution for these problems implemented in this thesis is to sidestep them altogether by disallowing write access to shared variables. The programmer (or in most cases the compiler) is obliged to declare a list of all shared variables before a newly created task is started. The interpreter would then create proxy objects for these variables which the task can use to access the data. These proxies contain references to the original objects. They use these references to forward all reading \textit{vtable} functions to the originals. Write access on the other hand would lead to a runtime error.
 
 In other words, all data is owned by the thread creating it and only the owner may write to it. Other threads have only read access.
 
 For threads to be able to communicate with their creators and other threads, they still need to write to shared variables. This is where green threads come into play. Since green threads are light weight, it is feasible for a thread to create a task just for updating a variable. This task is scheduled on the interpreter owning this variable. To reduce latency, the task is flagged to run immediately. The data-owning interpreter will preempt the currently running task and process the new write task. Put another way, the data-owning interpreter is told what to write to its variables, so other threads don't have to.
+
+\begin{figure}
+    \centering
+    \begin{sequencediagram}
+        \newthread{main}{:MainThread}
+        \newinst{shared}{:A}
+        \newthread{child}{:ChildThread}
+
+        \begin{callself}{main}{task1}{}
+        \end{callself}
+
+        \prelevel\prelevel
+        \begin{callself}{child}{task2}{}
+            \postlevel
+            \begin{messcall}[1]{child}{schedule(write\_task)}{main}
+                \begin{callself}{main}{write\_task}{}
+                    \begin{messcall}{main}{write}{shared}
+                    \end{messcall}
+                \end{callself}
+            \end{messcall}
+        \end{callself}
+
+        \prelevel\prelevel
+        \begin{callself}{main}{task1}{}
+        \end{callself}
+
+    \end{sequencediagram}
+    \caption{\textit{task2} running on \textit{ChildThread} is sending the \textit{write\_task} to the \textit{MainThread} to write to the shared variable \textit{A}.}
+    \label{fig:hybridthreads}
+\end{figure}
 
 \section{Critical Sections}
 
