@@ -5,10 +5,14 @@
 \usepackage{tikz}
 \usepackage{pgf-umlsd}
 \usepgflibrary{arrows}
-\usetikzlibrary{shadows}
+\usetikzlibrary{shapes,arrows,shadows}
 \AddBibFile{literature.bib}
 
 \begin{document}
+
+\tikzstyle{block} = [rectangle, draw, text width=12.3em, text centered, rounded corners, minimum height=2em]
+\tikzstyle{decision} = [diamond, draw, text width=4.5em, text badly centered, node distance=2cm, inner sep=0pt]
+\tikzstyle{line} = [draw, -latex']
 
 \title{Hybrid Threads \\ for the \\ Parrot Virtual Machine}
 
@@ -380,25 +384,87 @@ With separated memory domains, it can happen that an object is created on one th
 
 \section{Scheduler}
 
-The scheduler is the place where most of the green thread logic is implemented. It consists of two parts: functions using the prefix \textit{Parrot\_cx} which are located in \textit{src/scheduler.c} and the scheduler PMC type containing the scheduler's data and public interface.
+The scheduler is the place where most of the green thread logic is implemented. It consists of two parts: functions using the prefix \textit{Parrot\_cx} which are located in \textit{src/scheduler.c} and the \textit{Scheduler} PMC type containing the scheduler's data and public interface.
 
-\textit{Parrot\_cx\_init\_scheduler} is called from \textit{Parrot\_interp\_initialize\_interpreter} whenever a new interpreter is created, e.g., on interpreter startup and whenever a new thread is created. It creates the scheduler PMC and sets up alarm signal handling.
+The process of executing and preempting tasks is pictured in figure~\ref{controlflow} and described in detail in the rest of this section.
+
+\begin{figure}
+\centering
+\begin{tikzpicture}[node distance = 1cm, auto]
+\node[block](outerrl){Parrot\_cx\_outer\_runloop};
+\node[block, below of=outerrl](nexttask){Parrot\_cx\_next\_task};
+\node[block, below of=nexttask](runloop){runloop};
+\node[decision, below of=runloop] (branch) {branch?};
+\node[block, below of=branch, node distance=2cm](checksched){Parrot\_cx\_check\_scheduler};
+\node[block, below of=checksched](runsched){Parrot\_cx\_run\_scheduler};
+\node[block, right of=runsched, node distance=13.8em](checkquant){Parot\_cx\_check\_quantum};
+\node[decision, below of=runsched] (taskdone) {Quantum done?};
+\node[block, below of=taskdone, node distance=2cm](preempt){Parrot\_cx\_preempt\_task};
+\node[block, right of=preempt, node distance=13.8em](stop){Parrot\_cx\_stop\_task};
+\path[line](outerrl) -- (nexttask);
+\path[line](nexttask) -- (runloop);
+\path[line](runloop) -- (branch);
+\path[line](branch.south) to node[right] {yes} (checksched.north);
+\path[line](branch.west) to [out=180,in=220] node[right] {no} (runloop.west);
+\path[line](checksched) -- (runsched);
+\path[line](runsched) -- (checkquant);
+\path[line](runsched) -- (taskdone);
+\path[line](taskdone.south) to node[right] {yes} (preempt.north);
+\path[line](taskdone.west) to [out=180,in=220] node[right] {no} (runloop.west);
+\path[line](preempt) -- (stop);
+\draw[->] (preempt.west) to [out=120,in=240] (outerrl.west);
+\end{tikzpicture}
+\caption{Control flow of task execution and preemption.}
+\label{fig:controlflow}
+\end{figure}
+
+\textit{Parrot\_cx\_init\_scheduler} is called from \textit{Parrot\_\-interp\-\_ini\-tialize\_\-inter\-preter} whenever a new interpreter is created, e.g., on interpreter startup and whenever a new thread is created. It creates the scheduler PMC and sets up alarm signal handling.
 
 The scheduler is hooked into the system by replacing the call to execute the \textit{main\_sub} by a call to \textit{Parrot\_cx\_begin\_execution}. The latter creates the main task using \textit{main\_sub} as the task's code. This task is then put onto the run queue. The scheduler timer gets enabled and control is given to \textit{Parrot\_cx\_outer\_runloop}.
 
-\textit{Parrot\_cx\_outer\_runloop} is the loop taking tasks from the run queue and executing them. Despite its name, it may not be confused with runloops discussed in section~\ref{sec:Runloops}. \textit{Parrot\_cx\_outer\_runloop} actually consists of two nested loops. The inner loop fetches tasks from the task queue and executes as long as tasks are available. Even when all tasks are finished there may still be alarms pending which upon termination would trigger new tasks to be scheduled. For this reason, there is an outer loop checking for pending alarms. If it finds any it puts the thread to sleep until the next alarm expires.
+\textit{Parrot\_cx\_outer\_runloop} is the loop taking tasks from the run queue and executing them. Despite its name, it may not be confused with runloops discussed in section~\ref{sec:Runloops}. This function has to execute tasks as long as tasks are available. If no tasks are available, it lets the thread sleep to not uselessly burn CPU time. On the other hand it should simply end instead of sleep if no tasks are available, no alarms pending and no tasks are being executed on other threads.
 
-\textit{Parrot\_cx\_next\_task} contains the code to take the next task from the run queue and executing it. Before calling the task, it checks if there are other tasks still in the queue. Only if other tasks are waiting, task preemption is enabled. Otherwise, the current task will run until it finishes by itself, schedules other tasks or an alarm expires. This is an optimization reducing the runtime overhead of green threads in the important single tasking case to zero.
+As can be seen in listing~\ref{fig:outerrunloop}, \textit{Parrot\_cx\_outer\_runloop} therefore consists of two nested loops. The inner loop fetches tasks from the task queue and executes as long as tasks are available. Even when all tasks are finished there may still be alarms pending which upon termination would trigger new tasks to be scheduled. For this reason, there is an outer loop checking for pending alarms. If it finds any it puts the thread to sleep until the next alarm expires.
+
+\begin{figure}
+\centering
+\begin{GenericCode}
+do {
+    while (tasks_available()) {
+        Parrot_cx_next_task()
+        Parrot_cx_check_alarms()
+    }
+
+    clean_finished_foreign_tasks()
+
+    if (
+        not tasks_available()
+        and (alarms_pending() or foreign_tasks_active())
+    ) {
+        Parrot_thread_wait_for_notification()
+        Parrot_cx_check_alarms()
+    }
+} while (
+    alarms_pending()
+    or foreign_tasks_active()
+    or tasks_available()
+)
+\end{GenericCode}
+\caption{Pseudo code describing Parrot\_cx\_outer\_runloop.}
+\label{fig:outerrunloop}
+\end{figure}
+
+\textit{Parrot\_cx\_next\_task} contains the code to take the next task from the run queue and execute it. Before calling the task, it checks if there are other tasks still in the queue. Only if other tasks are waiting, task preemption is enabled. Otherwise, the current task will run until it finishes by itself, schedules other tasks or an alarm expires. This is an optimization reducing the runtime overhead of green threads in the important single tasking case to zero.
 
 To enable task preemption, \textit{Parrot\_cx\_enable\_preemption} sets a flag on the scheduler PMC and uses \textit{Parrot\_cx\_set\_scheduler\_alarm} to set an alarm at a point in time \textit{PARROT\_TASK\_SWITCH\_QUANTUM} milliseconds in the future.
 
-When an alarm is triggered, Parrot only increments the global \textit{alarm\_serial}. This serial is checked for changes by \textit{Parrot\_alarm\_check} being called by \textit{Parrot\_cx\_check\_scheduler}. This function in turn is called once for every \textit{branch} operation. When the serial is different from the last check or the \textit{SCHEDULER\_wake\_requested} flag is set, \textit{Parrot\_cx\_check\_scheduler} wakes up the scheduler by calling \textit{Parrot\_cx\_run\_scheduler}.
+Checking for expired alarms after every executed operation would be too costly. Therefore the \textit{branch} operation has been picked as the point where alarms are checked. To make this as cheap as possible, Parrot increments the global \textit{alarm\_serial}. This serial is compared to the value last seen by the \textit{Parrot\_cx\_check\_scheduler} function. If they are different, or the \textit{SCHEDULER\_wake\_requested} flag is set, \textit{Parrot\_cx\_check\_scheduler} wakes up the scheduler by calling \textit{Parrot\_cx\_run\_scheduler}.
 
-Since POSIX alarms can only be delivered to the main thread of a process, \textit{Parrot\_cx\_run\_scheduler} uses \textit{Parrot\_thread\_notify\_threads} to relay alarms to other thread's schedulers. For this purpose, every thread has a pipe which \textit{Parrot\_thread\_notify\_threads} writes a dummy byte to. The next step for the \textit{Parrot\_cx\_run\_scheduler} is to check for any expired alarms using \textit{Parrot\_cx\_check\_alarms}. An alarm has a task as callback. On expiry, this callback gets scheduled for immediate execution. As alarm signals do not contain any information about their origin, the scheduler does not know if the alarm was scheduled by user code or if it is the scheduler's preemption alarm. \textit{Parrot\_cx\_check\_quantum} is therefore used to check if the current task has used its assigned quantum and if it should be preempted.
+\textit{Parrot\_cx\_check\_quantum} is used to check if the alarm signal means that the current task has used its assigned quantum and should therefore be preempted.
 
 Preemption of a task is implemented in \textit{Parrot\_cx\_preempt\_task}. It uses \textit{Parrot\_cx\_stop\_task} to create a continuation at the current point of execution and store it as the task's code. The task itself is then appended at the end of the run queue. The function returns a \textit{NULL} opcode which is propagated all the way up through the stack back to the \textit{branch} operation checking for alarms. The operation then recognizes this as the signal to stop processing and to exit the runloop.
 
-The control flow ends up back at \textit{Parrot\_cx\_next\_task} at the point after executing the task. \textit{Parrot\_cx\_next\_task} then returns to \textit{Parrot\_cx\_outer\_runloop}.
+The control flow ends up back at \textit{Parrot\_cx\_next\_task} at the point after executing the task. \textit{Parrot\_cx\_next\_task} then returns to \textit{Parrot\_cx\_\-outer\_\-runloop}.
 
 The \textit{schedule} opcode is used to schedule a new task from user code. It uses \textit{Parrot\_cx\_schedule\_task} which starts new worker threads if needed and possible and pushes the task on the target thread's scheduler's task queue. If the target thread previously was executing only a single task, its preemption has been disabled for optimization as described above. So in this case \textit{Parrot\_cx\_schedule\_task} has to enable preemption to give the new task a chance to run.
 
@@ -478,17 +544,37 @@ This section describes how OS threads are used to execute tasks in parallel.
 \subsection{Creation}
 \label{subsec:thread_creation}
 
-Each thread is represented by an instance of the ParrotInterpreter PMC. These interpreters are kept in the \textit{threads\_array} defined in \textit{src/thread.c}. It's a C array instead of one of Parrot's dynamic arrays implemented as PMCs because although ParrotInterpreter is implemented as a PMC itself, it is not garbage collected because of the bootstrapping issues this would create.
+Each thread is represented by an instance of the ParrotInterpreter PMC. These interpreters are kept in the \textit{threads\_array} defined in \textit{src/thread.c}. It is a C array instead of one of Parrot's dynamic arrays implemented as PMCs because although ParrotInterpreter is implemented as a PMC itself, it is not garbage collected because of the bootstrapping issues this would create.
 
-\textit{src/thread.c} also contains thread management functions all prefixed by \textit{Parrot\_thread\_}. Threads are created when \textit{Parrot\_cx\_schedule\_task} determines that all existing threads are busy and new threads can be started. \textit{Parrot\_cx\_schedule\_task} uses \textit{Parrot\_thread\_create} to create a new interpreter by cloning the current one and giving it an empty \textit{thread\_data} structure. It also creates the \textit{thread\_data->notifierfd} pipe used to notify threads of expired alerts.
+\textit{src/thread.c} also contains thread management functions all prefixed by \textit{Parrot\_thread\_}. Threads are created when \textit{Parrot\_cx\_schedule\_task} determines that all existing threads are busy and new threads can be started. \textit{Parrot\_cx\_schedule\_task} uses \textit{Parrot\_thread\_create} to create a new interpreter by cloning the current one and giving it an empty \textit{thread\_data} structure.
 
-The task is then scheduled with the new interpreter's scheduler using \textit{Parrot\_thread\_schedule\_task}. This function uses \textit{Parrot\_thread\_create\_local\_task} to create a corresponding task on the new interpreter and then pushes it onto the scheduler. Since each interpreter has its own GC, all objects used on the interpreter must origin from this GC's memory pools. That is why \textit{Parrot\_thread\_create\_local\_task} creates a new \textit{local\_task}. Proxies are created for the task's \textit{code} and \textit{data} attributes. The task object of the originating interpreter and the new \textit{local\_task} are linked using their \textit{partner} attributes containing a pointer to the other object. This is the point, where for all variables in the original task's \textit{shared} array proxies are created an put into the \textit{shared} array of the \textit{local\_task}. \textit{Parrot\_thread\_create\_proxy} is used for this purpose.
+The task is then scheduled with the new interpreter's scheduler using \textit{Parrot\_thread\_schedule\_task}. This function uses \textit{Parrot\_\-thread\_\-create\_\-local\_\-task} to create a corresponding task on the new interpreter and then pushes it onto the scheduler. Since each interpreter has its own GC, all objects used on the interpreter must origin from this GC's memory pools. That is why \textit{Parrot\_thread\_create\_local\_task} creates a new \textit{local\_task} as desribed in figure~\ref{fig:createlocaltask}. Proxies are created for the task's \textit{code} and \textit{data} attributes (lines 3 and 4). The task object of the originating interpreter and the new \textit{local\_task} are linked using their \textit{partner} attributes containing a pointer to the other object (lines 11 and 12). For all variables in the original task's \textit{shared} array proxies are created an put into the \textit{shared} array of the \textit{local\_task} (lines 6--9). \textit{Parrot\_thread\_create\_proxy} is used for this purpose.
+
+\begin{figure}
+\centering
+\begin{GenericCode}
+local_task = new Task()
+
+local_task->code = Parrot_thread_create_proxy(task->code)
+local_task->data = Parrot_thread_create_proxy(task->data)
+
+foreach (variable in task->shared) {
+    proxy = Parrot_thread_create_proxy(variable)
+    push(proxy, local_task->shared)
+}
+
+local_task->partner = task
+task->partner = local_task
+\end{GenericCode}
+\caption{Pseudo code describing Parrot\_thread\_create\_local\_task.}
+\label{fig:createlocaltask}
+\end{figure}
 
 \textit{Parrot\_thread\_insert\_thread} is used to put the new interpreter into the \textit{threads\_array}.
 
 \textit{Parrot\_thread\_run} is the function where the actual OS thread is created. It uses macros defined in the \textit{include/parrot/thr\_*.h} include files which act as an OS abstraction layer.
 
-\textit{Parrot\_thread\_outer\_runloop} is used as the thread's main function. It is very similar to \textit{Parrot\_cx\_outer\_runloop}. The most important difference is the way it waits for pending alarms in case no tasks are to be run. While \textit{Parrot\_cx\_outer\_runloop} waits for an alarm signal to arrive, \textit{Parrot\_thread\_outer\_runloop} waits for a dummy to be written to its \textit{notifierfd} pipe by \textit{Parrot\_cx\_run\_scheduler}.
+\textit{Parrot\_thread\_outer\_runloop} is used as the thread's main function. It is very similar to \textit{Parrot\_cx\_outer\_runloop}. The most important difference is that \textit{Parrot\_thread\_outer\_runloop} waits indefinitely for new tasks while \textit{Parrot\_cx\_outer\_runloop} ends if no tasks are queued and no alarms are pending.
 
 \subsection{Proxies}
 
@@ -499,11 +585,11 @@ Proxies are the arbiters between threads. They are the only means for a thread t
 \item \textit{Parrot\_Interp interp}: the interpreter owning target.
 \end{itemize}
 
-As described in section~\ref{sec:PMCs}, PMC source files get preprocessed before compilation by a C compiler. This preprocessing is done by the \textit{tools/build/pmc2c.pl} Perl script. This script is extended by the \textit{Parrot::Pmc2c::PMC::Proxy} module which creates default implementations for all \textit{vtable} functions not otherwise defined in the \textit{proxy.pmc} file. The default implementation for all writing functions just calls \textit{cant\_do\_write\_method} which creates a runtime exception.
+As described in section~\ref{sec:PMCs}, PMC source files get preprocessed before compilation by a C compiler. This preprocessing is done by the \textit{pmc2c.pl} Perl script. This script is extended by the \textit{Parrot::Pmc2c::PMC::Proxy} module which creates default implementations for all \textit{vtable} functions not otherwise defined in the \textit{proxy.pmc} file. The default implementation for all writing functions just calls \textit{cant\_do\_write\_method} which creates a runtime exception.
 
 All other methods call the vtable method of the same name on the \textit{target} passing the current interpreter as \textit{interp} and all other parameters unchanged. This causes all access to globals by the proxied function to go through the thread's \textit{interp} and new PMCs created during the call to be allocated from the thread's memory pool. If the method returns a PMC from the target's \textit{interp}, another proxy object has to be created and wrapped around it so it can be safely returned to the caller.
 
-To differ between PMCs originating from the target's \textit{interp} and those created on the thread's \textit{interp} during the call, the GC is told to set the new \textit{PObj\_is\_new\_FLAG} on newly created PMCs. The \textit{PARROT\_THR\_FLAG\_NEW\_PMC} flag on the \textit{interp} is used to communicate this requirement to the GC.
+To differ between PMCs originating from the target's \textit{interp} and those created on the thread's \textit{interp} during the call, the GC is told to set the new \textit{PObj\_is\_new\_FLAG} on newly created PMCs. The \textit{PARROT\_\-THR\_\-FLAG\_\-NEW\_\-PMC} flag on the \textit{interp} is used to communicate this requirement to the GC.
 
 The alternative of calling the proxied function using the target's \textit{interp} leads to concurrency issues with the GC. Any call may cause GC to run. Since the GC also scans the C stack the target's GC would find the thread's PMCs there and mark them confusing the thread's GC. Disabling the GC requires a lock since the target's GC may already have started collecting.
 
@@ -535,9 +621,9 @@ Code to create the task looks like:
     interp.'schedule_proxied'(write_task, shared_variable)
 \end{GenericCode}
 %
-Line 1 creates a new task object. The example subroutine is used for the task's \textit{code} attribute. \textit{shared\_variable} is used for \textit{data}. At this point, \textit{shared\_variable} is actually the proxy object created for the shared integer PMC. The interpreter object contains a \textit{schedule\_proxied} method which is used to schedule the \textit{write\_task} on the thread owning the original variable. This owner thread's interpreter cannot be used directly for scheduling the task, since it would have to be stored in a register to be accessible to PIR code. But then, the same problem as described in section~\ref{subsec:thread_creation} would occur with the \textit{ParrotInterpreter} PMC tripping up the GC.
+Line 1 creates a new task object. The example subroutine is used for the task's \textit{code} attribute. \textit{shared\_variable} is used for \textit{data}. At this point, \textit{shared\_\-variable} is actually the proxy object created for the shared integer PMC. The interpreter object contains a \textit{schedule\_proxied} method which is used to schedule the \textit{write\_task} on the thread owning the original variable. This owner thread's interpreter cannot be used directly for scheduling the task, since it would have to be stored in a register to be accessible to PIR code. But then, the same problem as described in section~\ref{subsec:thread_creation} would occur with the \textit{ParrotInterpreter} PMC tripping up the GC.
 
-\textit{schedule\_proxied} uses \textit{Parrot\_thread\_create\_local\_task} which in this case detects that the \textit{data} given as parameter for the task's \textit{code} is actually a proxy already and unwraps the proxied object. \textit{Parrot\_cx\_schedule\_immediate} is then used to make the data owning interpreter execute the task as soon as possible.
+\textit{schedule\_proxied} uses \textit{Parrot\_thread\_create\_local\_task} which in this case detects that the \textit{data} given as parameter for the task's \textit{code} is actually a proxy already and unwraps the proxied object. \textit{Parrot\_cx\_schedule\_\-immediate} is then used to make the data owning interpreter execute the task as soon as possible.
 
 To protect a critical section, preemption can be disabled so the critical section runs uninterrupted:
 %
@@ -649,7 +735,7 @@ average & 28.383 s & 19.409 s & 17.451 s & 8.411 s \\
 \end{tabular}
 \end{table}
 
-As can be seen, the multithreaded implementation gives an average speedup of 2.31 for the computation and 1.61 in total.
+As can be seen, the multithreaded implementation gives an average speed\-up of 2.31 for the computation and 1.61 in total.
 
 \section{\textit{chameneos.pir}}
 
