@@ -30,7 +30,7 @@
 
 \chapter{Kurzfassung}
 
-Atikon EDV \& Marketing GmbH entwickelt Webseiten hauptsächlich für Steuerberater und Ärzte, sowie Software für Steuerberater. Als Leiter der Webprogrammierung führe ich ein Team von 5 Programmierern. Wir entwickeln Software für den internen Gebrauch sowie für externe Kunden, z.B. das Content Management System, die Projektverwaltung, Online-Steuerberechnung und Individualentwicklung wie z.B. ein CRM System für einen unserer Kunden.
+Atikon EDV \& Marketing GmbH entwickelt Webseiten hauptsächlich für Steuerberater und Ärzte, sowie Software für Steuerberater. Als Leiter der Webprogrammierung führe ich ein Team von 5 Programmierern. Wir entwickeln Software für den internen Gebrauch sowie für externe Kunden, z.B. das Content Management System, die Projektverwaltung, Online-Steuerberech\-nung und Individualentwicklung wie z.B. ein CRM System für einen unserer Kunden.
 
 Mit inzwischen über 1100 aktiven Webseiten ergeben sich in der Programmierung interessante Aufgaben von der Skalierung des Systems über die User Interface Gestaltung bis zur Automatisierung von Routineaufgaben um die Wartung und Pflege der Webseiten so effizient wie möglich zu gestalten.
 
@@ -44,7 +44,7 @@ Meine Aufgaben waren dabei neben der Projektleitung:
 \item{Implementierung des Exports aus dem alten CMS}
 \item{Implementierung der Unterstützung für die Templatesprache des alten CMS}
 \item{Erweiterung des Inline::Python Perlmoduls um die von uns benötigten Features}
-\item{Implementierung von automatischen Kompatibilitätstests mittels Screenshotvergleich der Webseiten mit allen Unterseiten.}
+\item{Implementierung von automatischen Kompatibilitätstests mittels Vergleich von Screenshots der Webseiten mit allen Unterseiten.}
 \end{itemize}
 
 %%%----------------------------------------------------------
@@ -148,7 +148,7 @@ Jede Website besitzt ein eigenes Datenbankschema, das in einem PostgreSQL-schema
 
 Das Datenbankschema selbst ist in den Tabellen \textit{zms\_meta\_objects} und \textit{zms\_object\_attrs} beschrieben, wo es für jeden Typ bzw. jedes Attribut eines Typs Einträge gibt. Diese Tabellen werden zusammen mit \textit{zms\_languages}, welche Informationen über die in dieser Website verfügbaren Sprachen enthält, zu Beginn jedes Requests gelesen.
 
-Die Objekte einer Website werden in einem Baum verwaltet. Um Abfragen auf Teilbäume effizienter zu machen, werden in der Tabelle \textit{zms\_object\_tree} Informationen über die Baumstruktur gespeichert. Sie erlaubt effiziente Abfragen auf komplette Unterbäume mit optionaler Begrenzung der Suchtiefe. Die Informationen werden von Triggern in der Datenbank automatisch bei Änderungen an den Daten aktualisiert.
+Die Objekte einer Website werden in einem Baum verwaltet. Um Abfragen auf Teilbäume effizienter zu machen, werden in der Tabelle \textit{zms\_object\_\-tree} Informationen über die Baumstruktur gespeichert. Sie erlaubt effiziente Abfragen auf komplette Unterbäume mit optionaler Begrenzung der Suchtiefe. Die Informationen werden von Triggern in der Datenbank automatisch bei Änderungen an den Daten aktualisiert.
 
 Mehrsprachigkeit wird unterstützt indem bei mehrsprachigen Objekteigenschaften jeweils ein Datenbankfeld für jede Sprache angelegt wird. Ist ein Feld in einer Sekundärsprache NULL wird ein Fallback auf die für diese Sprache angegebene Vorgängersprache durchgeführt. Werden neue Sprachen hinzugefügt, oder bestehende entfernt müssen daher alle Datenbanktabellen und Views entsprechend angepasst werden.
 
@@ -156,9 +156,9 @@ Mehrsprachigkeit wird unterstützt indem bei mehrsprachigen Objekteigenschaften j
 
 \textit{ZMS::Object} ist die Basisklasse für alle vom CMS verwalteten Objekte und enthält den Großteil des Interfaces für Templatecode. \textit{ZMS::ContainerObject} ist davon abgeleitet und ist ihrerseits die Basisklasse für alle Objekte, die sich wie Ordner verhalten und Kindobjekte im Baum enthalten können. Von diesen beiden Klassen sind alle Klassen von Inhaltsobjekten abgeleitet. Vom Benutzer erstellte Objekttypen werden von \textit{ZMS::Custom} repräsentiert.
 
-Die von den Inhaltsobjekten unterstützten Attribute sind als von \textit{ZMS::Attribute} abgeleitete Klassen implementiert. Sie enthalten Informationen über den möglicherweise benutzten Datentyp eines Datenbankfeldes, Code zum Rendern des Eingabeinterfaces und für die Eingabevalidierung.
+Die von den Inhaltsobjekten unterstützten Attribute sind als von \textit{ZMS::\-Attribute} abgeleitete Klassen implementiert. Sie enthalten Informationen über den möglicherweise benutzten Datentyp eines Datenbankfeldes, Code zum Rendern des Eingabeinterfaces und für die Eingabevalidierung.
 
-\textit{Catalyst} gibt eine Grundstruktur für den Aufbau der Anwendung mit Unterteilung in Models, Views und Controllern vor. \textit{ZMS::Model::DB} implementiert alle low level Datenbankzugriffe und generiert daher auch alle verwendeten SQL Statements. Um die Ausgabe der Website kümmert sich \textit{ZMS::Controller::Content}. Die Verwaltung der Inhalte wird von \textit{ZMS::Controller::Content::Management} gestellt. Die Verwaltung der Metadaten wie Typen, Sprachen und Benutzer finden sich im \textit{ZMS::Controller::System} Namensraum.
+\textit{Catalyst} gibt eine Grundstruktur für den Aufbau der Anwendung mit Unterteilung in Models, Views und Controllern vor. \textit{ZMS::Model::DB} implementiert alle low level Datenbankzugriffe und generiert daher auch alle verwendeten SQL Statements. Um die Ausgabe der Website kümmert sich \textit{ZMS::Controller::Content}. Die Verwaltung der Inhalte wird von \textit{ZMS::Con\-troller::Content::Management} gestellt. Die Verwaltung der Metadaten wie Typen, Sprachen und Benutzer finden sich im \textit{ZMS::Controller::System} Namensraum.
 
 \section{DTML}
 

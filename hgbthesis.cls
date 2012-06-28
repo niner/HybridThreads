@@ -515,7 +515,7 @@ acknowledged. I further declare that this or similar work has not been submitted
 %% 3 categories of references:
 \newcommand{\@bibtitleLiteratur}{Literature}
 \newcommand{\@bibtitleAvmedia}{Filme und audiovisuelle Medien}
-\newcommand{\@bibtitleOnline}{Online Sources}	
+\newcommand{\@bibtitleOnline}{Online sources}	
 
 \defbibfilter{literature}{
 	not ( type=movie or type=video or type=music or type=audio or 

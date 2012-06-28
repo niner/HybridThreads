@@ -2,7 +2,7 @@
 
 all: Paper.pdf Praktikum.pdf clean-temp
 
-Paper.pdf: Paper.tex literature.bib perlexample.tex
+Paper.pdf: Paper.tex literature.bib perlexample.tex hgbthesis.cls
 	latex --output-format=pdf Paper.tex
 	bibtex8 Paper.aux
 	latex --output-format=pdf Paper.tex

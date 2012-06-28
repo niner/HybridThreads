@@ -10,8 +10,9 @@
 
 \begin{document}
 
+\tikzstyle{endpoint} = [circle, draw, text width=1.8em, text centered, rounded corners, minimum height=1.8em]
 \tikzstyle{block} = [rectangle, draw, text width=12.3em, text centered, rounded corners, minimum height=2em]
-\tikzstyle{decision} = [diamond, draw, text width=4.5em, text badly centered, node distance=2cm, inner sep=0pt]
+\tikzstyle{decision} = [diamond, draw, text width=4.5em, text badly centered, node distance=1.9cm, inner sep=0pt]
 \tikzstyle{line} = [draw, -latex']
 
 \title{Hybrid Threads \\ for the \\ Parrot Virtual Machine}
@@ -60,7 +61,7 @@ Diese Arbeit zeigt einen Weg, um Threadingunterst{\"u}tzung in der Laufzeitumgeb
 
 \mainmatter
 
-\chapter{Introduction and Motivation}
+\chapter{Introduction and motivation}
 
 %
 On July 19th 2000, the Perl 6 design process was announced. Perl 5 had been a flexible and widely used programming language but had started to show its age and suffered from early design decisions.
@@ -107,11 +108,12 @@ Before the work on this thesis started, Parrot did not have any threading suppor
 
 This thesis suggests a new approach based on a hybrid threading system. So called \textit{green threads} are used to simplify the implementation of a nearly lock free multithreading implementation. This approach is based on a design by Andrew Whitworth and Nat Tuck \cite{WKnightThreading}. The goal of this thesis is to demonstrate the advantages of this model and produce a working implementation which can be used to investigate the performance characteristics of a hybrid threading system.
 
-\chapter{Concurrency in other Programming Platforms}
+\chapter{Concurrency in other programming platforms}
 
 This chapter is about programming platforms. A platform is seen as a combination of a programming language and a runtime. E.g. for the Python programming language there are multiple runtimes with different implementations of threading support.
 
 \section{Java}
+\label{sec:java}
 
 In Java, the user is responsible for preventing concurrency issues. The language provides synchronization primitives like mutexes, but the interpreter (the Java Virtual Machine, JVM) does not protect the consistency of the provided data structures. The class library provides the user with high-level data structures explicitly designed for multithreaded scenarios.
 
@@ -139,7 +141,7 @@ To run Python code in parallel, multiple processes have to be used. The \textit{
 Following is an example of a multithreaded program in Python. The program spawns 10,000 threads, each one waiting for the \textit{starter} variable to be set to 1 before appending it's name to an array:
 \input{thread-python}
 
-Even though many threads append to the same array, they do not have to take any locks. The GIL implicitly protects the array by allowing only one Python instruction to be run at any time.
+Even though many threads append to the same array, they do not have to take any locks. The GIL implicitly protects the array by allowing only one Python instruction to be run at any time. This is a contrast to the Java version in section~\ref{sec:java} where the user has to prevent concurrency issues either by using a thread-safe data structure or through manual locking.
 
 \chapter{Parrot}
 
@@ -153,7 +155,7 @@ The current design of Parrot uses four sets of registers where each one has an u
 \item integer,
 \item floating point,
 \item string and
-\item polymorphic container (PMC).
+\item PolyMorphic Container (PMC).
 \end{itemize}
 
 The first three register types are self explanatory. String in Parrot is a low-level type with the interpreter handling all memory allocation issues and Unicode encoding. String values are immutable.
@@ -212,7 +214,7 @@ It is also a data structure containing information needed to support exception h
 
 Before entering a runloop, the \textit{setjmp} C function is used to save the current stack position and register contents in a data structure stored in the runloop meta data. This is effectively creating something resembling a continuation at the C level. When an exception is created within the interpreter, the runloop stack is searched for the runloop containing a suitable exception handler. \textit{longjmp} is then used to unwind the call stack up to the point where \textit{setjmp} was called and the call environment is restored. While having great similarities with continuations, this mechanism is more limited. It only allows to jump back to a point ``higher'' in the call stack.
 
-\section{Garbage Collector (GC)}
+\section{Garbage collector (GC)}
 
 Parrot supports different Garbage Collector (GC) implementations which can be selected at interpreter startup. Currently, there are four implementations of different algorithms:
 \begin{itemize}
@@ -309,7 +311,7 @@ In Parrot, green threads are called \textit{Tasks}. Each task is assigned a fixe
 
 The scheduler is implemented as a PMC type. This allows the user to subclass this PMC thus allowing fine-grained control over the scheduling policy. Features, a user could add this way would be for example giving different priorities to tasks or implementing the possibility to suspend and resume a task.
 
-\chapter{Design of Hybrid Threads}
+\chapter{Design of hybrid threads}
 \label{cha:design}
 
 This chapter describes how green threads are used to solve the following problems occurring when trying to implement threading support:
@@ -366,11 +368,11 @@ For threads to be able to communicate with their creators and other threads, the
     \label{fig:hybridthreads}
 \end{figure}
 
-\section{Critical Sections}
+\section{Critical sections}
 
 Critical sections can be implemented by disabling preemption until the code has left the section. With other threads not being allowed to write to the data and the current task running uninterrupted it it guaranteed to complete without the data being changed from outside.
 
-\section{Garbage Collection (GC)}
+\section{Garbage collection (GC)}
 
 A GC has to traverse and process the entire graph of objects in memory. If during this traversal another thread is changing this structure by creating new objects, moving them around in the graph or removing them, the GC's data would be compromised. For example, it could happen that the GC does not mark referenced objects alive because they were added to objects which have already been processed.
 
@@ -380,39 +382,47 @@ Since cross-threaded writes are already forbidden and all read access to other t
 
 With separated memory domains, it can happen that an object is created on one thread, used on another thread but not any more on the owner thread. Without any additional measures, the GC would collect such objects, since it does not know about references from other threads. But since all objects which could be accessed from other threads have to be pushed onto the task object representing these threads, the objects can still be referenced from the task object. Since the task is still owned by the original thread, the GC knows that these objects are still in use.
 
-\chapter{Implementation of Hybrid Threads}
+\chapter{Implementation of hybrid threads}
 
 \section{Scheduler}
 
 The scheduler is the place where most of the green thread logic is implemented. It consists of two parts: functions using the prefix \textit{Parrot\_cx} which are located in \textit{src/scheduler.c} and the \textit{Scheduler} PMC type containing the scheduler's data and public interface.
 
-The process of executing and preempting tasks is pictured in figure~\ref{controlflow} and described in detail in the rest of this section.
+The process of executing and preempting tasks is pictured in figure~\ref{fig:controlflow} and described in detail in the rest of this section.
 
 \begin{figure}
 \centering
 \begin{tikzpicture}[node distance = 1cm, auto]
-\node[block](outerrl){Parrot\_cx\_outer\_runloop};
-\node[block, below of=outerrl](nexttask){Parrot\_cx\_next\_task};
+\node[endpoint](start){start};
+\node[block, below of=start, node distance=1.1cm](outerrl){Parrot\_cx\_outer\_runloop};
+\node[decision, below of=outerrl] (moretasks) {tasks available?};
+\node[block, below of=moretasks, node distance=2cm](nexttask){Parrot\_cx\_next\_task};
+\node[endpoint, right of=moretasks, node distance = 13.8em](end){end};
 \node[block, below of=nexttask](runloop){runloop};
-\node[decision, below of=runloop] (branch) {branch?};
+\node[decision, below of=runloop, node distance=1.7cm] (branch) {branch?};
 \node[block, below of=branch, node distance=2cm](checksched){Parrot\_cx\_check\_scheduler};
 \node[block, below of=checksched](runsched){Parrot\_cx\_run\_scheduler};
 \node[block, right of=runsched, node distance=13.8em](checkquant){Parot\_cx\_check\_quantum};
 \node[decision, below of=runsched] (taskdone) {Quantum done?};
 \node[block, below of=taskdone, node distance=2cm](preempt){Parrot\_cx\_preempt\_task};
 \node[block, right of=preempt, node distance=13.8em](stop){Parrot\_cx\_stop\_task};
-\path[line](outerrl) -- (nexttask);
+\path[line](start) -- (outerrl);
+\path[line](outerrl) -- (moretasks);
+\path[line](moretasks.south) to node[right] {yes} (nexttask.north);
+\path[line](moretasks.east) to  node[below] {no} (end.west);
 \path[line](nexttask) -- (runloop);
 \path[line](runloop) -- (branch);
 \path[line](branch.south) to node[right] {yes} (checksched.north);
-\path[line](branch.west) to [out=180,in=220] node[right] {no} (runloop.west);
+\path[line](branch.west) to [out=180,in=230] node[right] {no} (runloop.west);
 \path[line](checksched) -- (runsched);
 \path[line](runsched) -- (checkquant);
+\path[line](checkquant)[yshift=-0.3cm] -- (runsched)[yshift=-0.3cm];
 \path[line](runsched) -- (taskdone);
 \path[line](taskdone.south) to node[right] {yes} (preempt.north);
-\path[line](taskdone.west) to [out=180,in=220] node[right] {no} (runloop.west);
+\path[line](taskdone.west) to [out=150,in=230] node[right] {no} (runloop.west);
 \path[line](preempt) -- (stop);
-\draw[->] (preempt.west) to [out=120,in=240] (outerrl.west);
+\path[line](stop)[yshift=-0.3cm] -- (preempt)[yshift=-0.3cm];
+\draw[->] (preempt.west) to [out=110,in=250] (outerrl.west);
 \end{tikzpicture}
 \caption{Control flow of task execution and preemption.}
 \label{fig:controlflow}
@@ -487,7 +497,7 @@ The Scheduler PMC contains the following attributes:
 \item \textit{Parrot\_Interp interp}: a reference to the scheduler's interpreter.
 \end{itemize}
 
-\textit{push\_pmc} and \textit{unshift\_pmc} are used to add a task at the end, respectively the beginning of the task\_queue. \textit{shift\_pmc} is used to fetch and remove a task from the tip of the \textit{task\_queue}. \textit{get\_integer} returns the number of tasks in the \textit{task\_queue}. These four methods use the \textit{task\_queue\_lock} to make accessing the \textit{task\_queue} thread safe. Thus, the Scheduler PMC acts as a container while using \textit{task\_queue} to actually store the data.
+\textit{push\_pmc} and \textit{unshift\_pmc} are used to add a task at the end, respectively the beginning of the task\_queue. \textit{shift\_pmc} is used to fetch and remove a task from the tip of the \textit{task\_queue}. \textit{get\_integer} returns the number of tasks in the \textit{task\_queue}. These four methods use the \textit{task\_queue\_lock} to make accessing the \textit{task\_queue} thread-safe. Thus, the Scheduler PMC acts as a container while using \textit{task\_queue} to actually store the data.
 
 \textit{alarms} is list containing all pending alarms, sorted by their expiration time. Sorted insertion is used to keep alarms in order. Sorting makes it simple and efficient to retrieve all alarms that have expired at a certain point in time.
 
@@ -506,7 +516,7 @@ The Task PMC contains the following attributes:
 \item \textit{INTVAL killed}: flag marking killed tasks.
 \item \textit{PMC *waiters}: tasks waiting on this one.
 \item \textit{PMC *shared}: list of variables shared with this task.
-\item \textit{PMC *partner}: copy of this task on the other side of a GC barrier, meaning in another thread.
+\item \textit{PMC *partner}: copy of this task in another thread.
 \end{itemize}
 
 The \textit{invoke} method is used to run the task. It first checks the \textit{killed} flag to see if the task has been killed while waiting in the task queue. Parrot manages a \textit{recursion depth} counter which records, how many levels the call stack has. This counter is incremented by \textit{Parrot\_Sub\_invoke} for each call to a subroutine and decremented when a subroutine returns. While \textit{Parrot\_Sub\_invoke} is used to start or resume a task, the executed subroutine does not return when the task is preempted. This leads to \textit{recursion depth} growing until a \textit{recursion depth exceeded} exception is thrown. Therefore, as a workaround, the current \textit{recursion depth} is saved to a local variable and restored when the task stops executing.
@@ -533,7 +543,7 @@ If Parrot were to preempt a task while it is executing a nested runloop, it woul
 
 Thus, the scheduler checks for the current runloop id and does not preempt a task if it is currently running a nested runloop. Furthermore even a manual yield to another task is not possible in such a situation. The only way to solve this problem is to get rid of nested runloops in the interpreter.
 
-\section{Alarms and Timers}
+\section{Alarms and timers}
 
 Timers used for \textit{sleep}, alarms and preemption use a common timer thread implemented in \textit{src/alarm.c}. This thread sleeps until a new alarm is set or the currently active one expires. When the latter happens, it increases the global alarm serial and notifies all threads that a timer is expired. Since it does not keep a list of pending alarms but knows only about the next one, interpreter threads are obliged to reset their next alarms upon notification.
 
@@ -645,11 +655,9 @@ Using \textit{tasks} to write to shared variables makes such actions inherently 
 
 If a task on the main thread was waiting for a task on another thread to finish and no other tasks are in the scheduler's queue on the main thread, the main thread exits if no alarms are pending. To prevent this unintended exit, all tasks are added to the scheduler's \textit{foreign\_tasks} list when they are scheduled on other threads. To end the program with other threads still running, an explicit \textit{exit} operation has to be used.
 
-\subsection{Garbage Collection}
+\subsection{Garbage collection}
 
 Since each interpreter has its own GC and consequently its own memory areas and can only access its own data directly, the GC can act as if there were no other threads. After replacing references to global data by proxies, only a few special cases had to be built into the GC. The global variable \textit{PMCNULL} is used in many places in the code, but should be handled only by the main thread's GC.
-
-Before the implementation of threading support, having multiple interpreter objects in the system was used to implement things like a safe compartment where code can be run in a restricted environment. For such cases it was useful to share the GC between interpreters. This special handling had to be removed.
 
 Only the main thread is allowed to load additional bytecode or create new classes since it owns the data structures used to manage these things. Child threads use these via proxies. In previous implementation attempts code segments, classes and vtables have been copied for each new interpreter making thread startup a costly operation while still causing subtle problems.
 
@@ -661,7 +669,7 @@ Scheduling tasks on other interpreters may cause garbage collection due to the n
 
 This threading implementation is mostly contained in a few files. Only a few changes had to be done in other places like the \textit{ParrotInterpreter} and the GC. This is a major difference to the previous implementation where all PMCs contained threading related code. As the next chapter shows, this design helped to reach a working state and meet the performance goals quickly.
 
-\chapter{Tests and Benchmarks}
+\chapter{Tests and benchmarks}
 
 In addition to Parrot's extensive test suite, tests were conducted using three test programs.
 
@@ -753,28 +761,28 @@ Calculating an image of the Mandelbrot set \cite{Mandelbrot} is a common benchma
 \begin{tabular}{|l||c||c|c|c|c|} \hline
 & \emph{singlethreaded} & \emph{1 thread} & \emph{2 threads} & \emph{4 threads} & \emph{8 threads} \\
 \hline
-1. run  & 89.931s & 89.978s & 45.813s & 24.028s & 17.445s \\
+1. run  & 89.931 s & 89.978 s & 45.813 s & 24.028 s & 17.445 s \\
 \hline
-2. run  & 89.707s & 89.871s & 45.906s & 24.048s & 17.695s \\
+2. run  & 89.707 s & 89.871 s & 45.906 s & 24.048 s & 17.695 s \\
 \hline
-3. run  & 90.318s & 89.839s & 45.951s & 24.049s & 17.573s \\
+3. run  & 90.318 s & 89.839 s & 45.951 s & 24.049 s & 17.573 s \\
 \hline
-average & 89.985s & 89.896s & 45.890s & 24.042s & 17.571s  \\
+average & 89.985 s & 89.896 s & 45.890 s & 24.042 s & 17.571 s  \\
 \hline
-speedup & 1       &  1      &  1.959  &  3.739  &  5.116  \\
+speedup &  1.000  &  1.001  &  1.959  &  3.739  &  5.116  \\
 \hline
 \end{tabular}
 \end{table}
 
 As can be seen, the implementation scales nearly linearly up to four threads reflecting the CPUs four physical cores. Using eight threads, the speedup is only 1.368 compared to four threads but this seems to be more a limitation of the hardware than the implementation.
 
-\chapter{Conclusion, Further Work and Experiences}
+\chapter{Conclusion, further work and experiences}
 
 This thesis shows a way to implement threading support in a dynamic language runtime. Changes to the interpreter itself could be kept at a reasonable level and very local to the threading implementation itself. Benchmarks have shown that no slowdowns were measurable in the still very important singlethreaded case, while the implementation scales well using multiple threads.
 
 Practice will show how this threading model will fare with real world workloads. It very much depends on the ratio of read to write accesses to shared variables.
 
-\section{Further Work}
+\section{Further work}
 
 There are several ways in which the current implementation can be improved.
 
@@ -805,7 +813,7 @@ I picked a very advanced topic for my Bachelor's thesis. While I had to invest m
 It is therefore no exaggeration to state that without the help of the Parrot community I could not have come nearly as far as I did in the time I had. They are very welcoming and were supportive and grateful from the first day, boosting my motivation. I can only recommend to other students to approach the free software communities when looking for thesis topics.
 
 \appendix
-\chapter{moretasks.pir}
+\chapter{\textit{moretasks.pir}}
 \label{app:moretasks}
 
 This program tests the GC by creating tasks and writing to shared variables.
@@ -884,14 +892,14 @@ run:
 .end
 \end{GenericCode}
 
-\chapter{matrix\_part.winxed}
+\chapter{\textit{matrix\_part.winxed}}
 \label{app:matrix_part}
 
 This program implements multithreaded matrix multiplication.
 
 \lstinputlisting{/home/nine/install/parrot/examples/threads/matrix_part.winxed}
 
-\chapter{chameneos.pir}
+\chapter{\textit{chameneos.pir}}
 \label{app:chameneos_part}
 
 An implementation of the \textit{Chameneos} game testing thread synchronization.
